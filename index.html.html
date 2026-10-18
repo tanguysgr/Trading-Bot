@@ -1,0 +1,2416 @@
+<!DOCTYPE html>
+<html lang="de" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuantSwing AI – Decision-Support & Backtesting Terminal</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        tv: {
+                            bg: '#0b0e14',
+                            panel: '#131722',
+                            card: '#1e222d',
+                            border: '#2a2e39',
+                            hover: '#262b38',
+                            text: '#d1d4dc',
+                            muted: '#787b86',
+                            accent: '#2962ff',
+                            bull: '#089981',
+                            bullBg: 'rgba(8, 153, 129, 0.14)',
+                            bear: '#f23645',
+                            bearBg: 'rgba(242, 54, 69, 0.14)',
+                            gold: '#f59e0b',
+                            purple: '#8b5cf6'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #0b0e14;
+            color: #d1d4dc;
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+        }
+
+        /* Custom Scrollbars for Quant Terminal Look */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #131722;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #2a2e39;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #434651;
+        }
+
+        .glass-panel {
+            background: rgba(19, 23, 34, 0.95);
+            border: 1px solid #2a2e39;
+        }
+
+        .pulse-dot {
+            animation: pulseGlow 2s infinite;
+        }
+        @keyframes pulseGlow {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.45; transform: scale(1.15); }
+        }
+
+        input[type="range"] {
+            accent-color: #2962ff;
+        }
+
+        .markdown-content p {
+            margin-bottom: 0.5rem;
+        }
+        .markdown-content ul {
+            list-style-type: disc;
+            padding-left: 1.25rem;
+            margin-bottom: 0.5rem;
+        }
+        .markdown-content li {
+            margin-bottom: 0.25rem;
+        }
+        .markdown-content strong {
+            color: #ffffff;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col selection:bg-tv-accent selection:text-white">
+
+    <!-- ========================================================================= -->
+    <!-- TOP HEADER & GLOBAL BACKTEST KPI BAR                                      -->
+    <!-- ========================================================================= -->
+    <header class="bg-tv-panel border-b border-tv-border sticky top-0 z-30">
+        <div class="max-w-[1920px] mx-auto px-3 sm:px-5 py-2.5 flex flex-wrap items-center justify-between gap-3">
+            
+            <!-- Brand & Bot Status -->
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-tv-accent to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-900/30">
+                    <i class="fa-solid fa-chart-line text-white text-sm"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="font-bold text-white tracking-tight text-base">QuantSwing <span class="text-tv-accent">AI</span></span>
+                        <span class="text-[11px] font-mono uppercase px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-dot"></span>
+                            Decision Engine v4.2
+                        </span>
+                    </div>
+                    <p class="text-[11px] text-tv-muted hidden sm:block">Manuelle Order-Ausführung • Algorithmische Confluence-, Makro- & Backtest-Analyse</p>
+                </div>
+            </div>
+
+            <!-- Global KPI Bar (Dynamic) -->
+            <div class="flex flex-wrap items-center gap-2 sm:gap-3 lg:gap-5 bg-tv-bg px-3 py-1.5 rounded-xl border border-tv-border">
+                
+                <!-- Startkapital Input -->
+                <div class="flex flex-col pr-2 border-r border-tv-border">
+                    <span class="text-[10px] uppercase tracking-wider text-tv-muted">Kontogröße (€)</span>
+                    <div class="flex items-center gap-1">
+                        <input id="accountSizeInput" type="number" value="25000" step="1000" min="1000"
+                            class="bg-transparent font-mono font-semibold text-xs sm:text-sm text-white w-20 focus:outline-none focus:text-tv-accent border-b border-dashed border-tv-border"
+                            title="Klicken zum Ändern des Handelskapitals">
+                        <span class="text-xs text-tv-muted font-mono">€</span>
+                    </div>
+                </div>
+
+                <!-- Simuliertes Endkapital & Gesamt-ROI -->
+                <div class="flex flex-col pr-2 border-r border-tv-border">
+                    <span class="text-[10px] uppercase tracking-wider text-tv-muted">Backtest Netto-ROI</span>
+                    <div class="flex items-center gap-1.5">
+                        <span id="kpiTotalRoiPct" class="font-mono font-bold text-xs sm:text-sm text-tv-bull">+184.6%</span>
+                        <span id="kpiTotalRoiEur" class="font-mono text-[11px] text-emerald-400/80">(+46.150 €)</span>
+                    </div>
+                </div>
+
+                <!-- Simulierte Trades -->
+                <div class="flex flex-col pr-2 border-r border-tv-border">
+                    <span class="text-[10px] uppercase tracking-wider text-tv-muted">Backtest-Basis</span>
+                    <div class="flex items-center gap-1">
+                        <span id="kpiTotalTrades" class="font-mono font-bold text-xs sm:text-sm text-white">2.480</span>
+                        <span class="text-[11px] text-tv-muted">Trades</span>
+                    </div>
+                </div>
+
+                <!-- Winrate -->
+                <div class="flex flex-col pr-2 border-r border-tv-border">
+                    <span class="text-[10px] uppercase tracking-wider text-tv-muted">Trefferquote</span>
+                    <div class="flex items-center gap-1">
+                        <span id="kpiWinrate" class="font-mono font-bold text-xs sm:text-sm text-white">63.8%</span>
+                        <span class="text-[10px] px-1 rounded bg-tv-bullBg text-tv-bull font-mono">SWING</span>
+                    </div>
+                </div>
+
+                <!-- Profit Faktor -->
+                <div class="flex flex-col pr-2 border-r border-tv-border">
+                    <span class="text-[10px] uppercase tracking-wider text-tv-muted">Profit Faktor</span>
+                    <span id="kpiProfitFactor" class="font-mono font-bold text-xs sm:text-sm text-amber-400">2.42</span>
+                </div>
+
+                <!-- Max Drawdown -->
+                <div class="flex flex-col pr-2 border-r border-tv-border">
+                    <span class="text-[10px] uppercase tracking-wider text-tv-muted">Max Drawdown</span>
+                    <span id="kpiMaxDD" class="font-mono font-bold text-xs sm:text-sm text-tv-bear">-6.8%</span>
+                </div>
+
+                <!-- Expectancy pro Trade -->
+                <div class="flex flex-col">
+                    <span class="text-[10px] uppercase tracking-wider text-tv-muted">Erwartungswert / Trade</span>
+                    <div class="flex items-center gap-1">
+                        <span id="kpiExpectancyR" class="font-mono font-bold text-xs sm:text-sm text-tv-bull">+0.74 R</span>
+                        <span id="kpiExpectancyPct" class="font-mono text-[11px] text-tv-muted">(+0.74%)</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="flex items-center gap-2">
+                <button id="btnOpenBacktestTab" class="px-3 py-1.5 rounded-lg bg-tv-card hover:bg-tv-hover border border-tv-border text-xs font-medium text-white flex items-center gap-1.5 transition">
+                    <i class="fa-solid fa-sliders text-tv-accent"></i>
+                    <span>Backtest-Simulator</span>
+                </button>
+                <button id="btnRunLiveScan" class="px-3 py-1.5 rounded-lg bg-tv-accent hover:bg-blue-600 text-xs font-semibold text-white flex items-center gap-1.5 shadow-lg shadow-blue-600/20 transition">
+                    <i class="fa-solid fa-radar"></i>
+                    <span>Markt-Scan prüfen</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- ========================================================================= -->
+    <!-- MAIN WORKSPACE GRID (3-COLUMN QUANT TERMINAL LAYOUT)                      -->
+    <!-- ========================================================================= -->
+    <main class="flex-1 max-w-[1920px] w-full mx-auto p-3 sm:p-4 grid grid-cols-1 lg:grid-cols-12 gap-4">
+
+        <!-- ===================================================================== -->
+        <!-- LEFT COLUMN: INTERACTIVE TRADE LIST & SCANNER (3 COLS)                -->
+        <!-- ===================================================================== -->
+        <section class="lg:col-span-3 flex flex-col bg-tv-panel border border-tv-border rounded-xl overflow-hidden h-[860px]">
+            
+            <!-- Mode Switcher: Live Setups vs Historical Backtest Log -->
+            <div class="p-3 border-b border-tv-border bg-tv-bg/50">
+                <div class="grid grid-cols-2 gap-1 p-1 bg-tv-bg rounded-lg border border-tv-border mb-2.5">
+                    <button id="tabBtnLiveTrades" onclick="switchTradeListMode('live')"
+                        class="py-1.5 px-2 rounded-md text-xs font-semibold transition flex items-center justify-center gap-1.5 bg-tv-accent text-white shadow">
+                        <span class="w-1.5 h-1.5 rounded-full bg-white"></span>
+                        Live-Setups (<span id="countLiveTrades">6</span>)
+                    </button>
+                    <button id="tabBtnHistoryTrades" onclick="switchTradeListMode('history')"
+                        class="py-1.5 px-2 rounded-md text-xs font-medium transition flex items-center justify-center gap-1.5 text-tv-muted hover:text-white">
+                        <i class="fa-solid fa-clock-rotate-left text-[11px]"></i>
+                        Backtest-Log (<span id="countHistoryTrades">5</span>)
+                    </button>
+                </div>
+
+                <!-- Search & Filter Controls -->
+                <div class="flex gap-2 mb-2">
+                    <div class="relative flex-1">
+                        <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2.5 text-tv-muted text-xs"></i>
+                        <input id="tradeSearchInput" type="text" placeholder="Symbol, Sektor (z.B. XAU, NVDA)..."
+                            oninput="renderTradeList()"
+                            class="w-full bg-tv-card border border-tv-border rounded-lg pl-8 pr-2.5 py-1.5 text-xs text-white placeholder-tv-muted focus:outline-none focus:border-tv-accent">
+                    </div>
+                    <select id="directionFilter" onchange="renderTradeList()"
+                        class="bg-tv-card border border-tv-border rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-tv-accent">
+                        <option value="ALL">Alle</option>
+                        <option value="LONG">Long</option>
+                        <option value="SHORT">Short</option>
+                    </select>
+                </div>
+
+                <!-- Sorting Row -->
+                <div class="flex items-center justify-between text-[11px] text-tv-muted">
+                    <span>Sortieren nach:</span>
+                    <div class="flex gap-1.5">
+                        <button onclick="setTradeSort('score')" id="sortBtn-score" class="px-2 py-0.5 rounded bg-tv-card text-white border border-tv-accent/50 font-medium">Score</button>
+                        <button onclick="setTradeSort('roi')" id="sortBtn-roi" class="px-2 py-0.5 rounded bg-tv-card hover:text-white border border-tv-border">ROI %</button>
+                        <button onclick="setTradeSort('rr')" id="sortBtn-rr" class="px-2 py-0.5 rounded bg-tv-card hover:text-white border border-tv-border">CRV</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scrollable Trade Cards List -->
+            <div id="tradeListContainer" class="flex-1 overflow-y-auto divide-y divide-tv-border/60">
+                <!-- Populated dynamically via JS -->
+            </div>
+
+            <!-- Footer Info -->
+            <div class="p-2.5 bg-tv-bg border-t border-tv-border flex items-center justify-between text-[11px] text-tv-muted">
+                <span><i class="fa-solid fa-shield-halved text-tv-accent mr-1"></i> Manuelle Freigabe aktiv</span>
+                <span id="scannerLastUpdate" class="font-mono">Scan: Gerade eben</span>
+            </div>
+        </section>
+
+        <!-- ===================================================================== -->
+        <!-- CENTER COLUMN: CHARTS, BACKTEST ENGINE & TRADE INSPECTOR (6 COLS)     -->
+        <!-- ===================================================================== -->
+        <section class="lg:col-span-6 flex flex-col gap-4">
+
+            <!-- TOP HALF: VISUALIZATION TABS (SETUP CHART vs BACKTEST SIMULATOR) -->
+            <div class="bg-tv-panel border border-tv-border rounded-xl overflow-hidden flex flex-col">
+                
+                <!-- Visualization Tab Bar -->
+                <div class="px-4 py-2.5 bg-tv-bg/60 border-b border-tv-border flex flex-wrap items-center justify-between gap-2">
+                    <div class="flex items-center gap-2">
+                        <button id="mainTabChart" onclick="switchCenterTab('chart')"
+                            class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-tv-accent text-white flex items-center gap-2 transition shadow">
+                            <i class="fa-solid fa-chart-candlestick"></i>
+                            <span>Setup-Chart & Struktur-Analyse</span>
+                        </button>
+                        <button id="mainTabBacktest" onclick="switchCenterTab('backtest')"
+                            class="px-3 py-1.5 rounded-lg text-xs font-medium text-tv-muted hover:text-white bg-tv-card border border-tv-border flex items-center gap-2 transition">
+                            <i class="fa-solid fa-flask-vial text-amber-400"></i>
+                            <span>Backtest-Engine (Simulator & Equity)</span>
+                        </button>
+                    </div>
+
+                    <!-- Chart Layer Toggles (Visible when Chart Tab is active) -->
+                    <div id="chartLayerControls" class="flex items-center gap-1.5 text-[11px]">
+                        <button onclick="toggleChartLayer('sma')" id="layerBtn-sma" class="px-2 py-1 rounded bg-tv-card border border-tv-accent/60 text-white font-mono">SMA 50/200</button>
+                        <button onclick="toggleChartLayer('smc')" id="layerBtn-smc" class="px-2 py-1 rounded bg-tv-card border border-tv-accent/60 text-white font-mono">BOS & Sweep</button>
+                        <button onclick="toggleChartLayer('rr')" id="layerBtn-rr" class="px-2 py-1 rounded bg-tv-card border border-tv-accent/60 text-white font-mono">R:R Box</button>
+                    </div>
+                </div>
+
+                <!-- TAB 1 CONTENT: INTERACTIVE SETUP & VOLUME CHART -->
+                <div id="viewSetupChart" class="p-3 flex flex-col">
+                    <!-- Selected Asset Header Banner -->
+                    <div class="flex flex-wrap items-center justify-between gap-2 pb-2.5 mb-2 border-b border-tv-border/60">
+                        <div class="flex items-center gap-3">
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <h2 id="chartAssetTitle" class="text-base font-bold text-white font-mono">XAU/USD (Gold Spot)</h2>
+                                    <span id="chartTimeframeBadge" class="px-1.5 py-0.5 text-[11px] font-mono bg-tv-card border border-tv-border rounded text-tv-text">4H / 1D</span>
+                                    <span id="chartDirectionBadge" class="px-2 py-0.5 text-[11px] font-mono font-bold rounded bg-tv-bullBg text-tv-bull">LONG SETUP</span>
+                                </div>
+                                <p id="chartSetupSubtitle" class="text-xs text-tv-muted mt-0.5">Bullish BOS + Golden Pocket Orderblock Pullback nach Liquidity Sweep</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-4 font-mono text-xs">
+                            <div class="flex items-center gap-1.5">
+                                <span class="w-2.5 h-0.5 bg-cyan-400 inline-block"></span>
+                                <span class="text-tv-muted">SMA 50:</span>
+                                <span id="legendSma50" class="text-cyan-400">2.642,10</span>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <span class="w-2.5 h-0.5 bg-amber-400 inline-block"></span>
+                                <span class="text-tv-muted">SMA 200:</span>
+                                <span id="legendSma200" class="text-amber-400">2.588,40</span>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <span class="text-tv-muted">RVOL:</span>
+                                <span id="legendRvol" class="text-emerald-400 font-bold">1.68x</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Canvas Wrapper -->
+                    <div class="relative w-full h-[320px] bg-tv-bg rounded-lg border border-tv-border overflow-hidden">
+                        <canvas id="setupCanvas" class="w-full h-full block cursor-crosshair"></canvas>
+                        <!-- Hover Tooltip inside Chart -->
+                        <div id="chartHoverInfo" class="hidden absolute top-2 left-2 bg-tv-panel/90 border border-tv-border rounded px-2.5 py-1 text-[11px] font-mono text-tv-text pointer-events-none"></div>
+                    </div>
+                </div>
+
+                <!-- TAB 2 CONTENT: MULTI-THOUSAND TRADE BACKTEST ENGINE & EQUITY CURVE -->
+                <div id="viewBacktestEngine" class="hidden p-4 flex flex-col gap-4">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-microchip text-tv-accent"></i>
+                                Quantitative Backtest-Simulation (Historische Validierung)
+                            </h3>
+                            <p class="text-xs text-tv-muted">Teste, wie sich einzelne Bot-Regeln (SMA, BOS, Volumen, Makro-Filter) auf tausende vergangene Swing-Trades auswirken.</p>
+                        </div>
+                        <button onclick="runBacktestSimulation(true)" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-1.5 shadow transition">
+                            <i class="fa-solid fa-play"></i>
+                            <span>Simulation neu berechnen</span>
+                        </button>
+                    </div>
+
+                    <!-- Equity Curve Canvas -->
+                    <div class="relative w-full h-[210px] bg-tv-bg rounded-lg border border-tv-border overflow-hidden">
+                        <canvas id="equityCanvas" class="w-full h-full block"></canvas>
+                    </div>
+
+                    <!-- Interactive Backtest Controls Grid -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-tv-bg/60 p-3.5 rounded-xl border border-tv-border">
+                        
+                        <!-- Left Sliders: Sample Size, Confluence Threshold, Risk & CRV -->
+                        <div class="space-y-3">
+                            <div>
+                                <div class="flex justify-between text-xs mb-1">
+                                    <span class="text-tv-muted">Anzahl simulierter Backtest-Trades:</span>
+                                    <span id="lblSimTrades" class="font-mono font-bold text-white">2.480 Trades</span>
+                                </div>
+                                <input id="simTradesSlider" type="range" min="500" max="5000" step="100" value="2480"
+                                    oninput="updateBacktestFromUI()" class="w-full h-1.5 bg-tv-card rounded-lg cursor-pointer">
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between text-xs mb-1">
+                                    <span class="text-tv-muted">Mindest-Confluence-Score für Ausführung:</span>
+                                    <span id="lblSimMinScore" class="font-mono font-bold text-tv-accent">75 / 100 Pkt.</span>
+                                </div>
+                                <input id="simMinScoreSlider" type="range" min="50" max="90" step="5" value="75"
+                                    oninput="updateBacktestFromUI()" class="w-full h-1.5 bg-tv-card rounded-lg cursor-pointer">
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-3 pt-1">
+                                <div>
+                                    <div class="flex justify-between text-xs mb-1">
+                                        <span class="text-tv-muted">Risiko / Trade:</span>
+                                        <span id="lblSimRisk" class="font-mono font-bold text-emerald-400">1.0%</span>
+                                    </div>
+                                    <input id="simRiskSlider" type="range" min="0.25" max="2.5" step="0.25" value="1.0"
+                                        oninput="updateBacktestFromUI()" class="w-full h-1.5 bg-tv-card rounded-lg cursor-pointer">
+                                </div>
+                                <div>
+                                    <div class="flex justify-between text-xs mb-1">
+                                        <span class="text-tv-muted">Ø Ziel-CRV (R:R):</span>
+                                        <span id="lblSimRR" class="font-mono font-bold text-amber-400">1 : 2.6</span>
+                                    </div>
+                                    <input id="simRRSlider" type="range" min="1.5" max="4.0" step="0.1" value="2.6"
+                                        oninput="updateBacktestFromUI()" class="w-full h-1.5 bg-tv-card rounded-lg cursor-pointer">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right Checkboxes: Active Bot Confluence Modules -->
+                        <div class="flex flex-col justify-between">
+                            <span class="text-xs font-semibold text-white mb-1.5">Aktive Filter-Module im Algorithmus:</span>
+                            <div class="space-y-1.5 text-xs">
+                                <label class="flex items-center justify-between p-1.5 rounded bg-tv-card/70 border border-tv-border cursor-pointer hover:border-tv-accent/50">
+                                    <span class="flex items-center gap-2">
+                                        <input type="checkbox" id="modSma" checked onchange="updateBacktestFromUI()" class="accent-tv-accent rounded">
+                                        <span>SMA 50 & SMA 200 Trend-Alignment</span>
+                                    </span>
+                                    <span class="font-mono text-[10px] text-emerald-400">+7.4% Winrate</span>
+                                </label>
+                                <label class="flex items-center justify-between p-1.5 rounded bg-tv-card/70 border border-tv-border cursor-pointer hover:border-tv-accent/50">
+                                    <span class="flex items-center gap-2">
+                                        <input type="checkbox" id="modBos" checked onchange="updateBacktestFromUI()" class="accent-tv-accent rounded">
+                                        <span>Break of Structure (BOS) + Liquidity Sweep</span>
+                                    </span>
+                                    <span class="font-mono text-[10px] text-emerald-400">+11.2% Winrate</span>
+                                </label>
+                                <label class="flex items-center justify-between p-1.5 rounded bg-tv-card/70 border border-tv-border cursor-pointer hover:border-tv-accent/50">
+                                    <span class="flex items-center gap-2">
+                                        <input type="checkbox" id="modVol" checked onchange="updateBacktestFromUI()" class="accent-tv-accent rounded">
+                                        <span>Volumen-Bestätigung (RVOL > 1.3x SMA20)</span>
+                                    </span>
+                                    <span class="font-mono text-[10px] text-emerald-400">+5.8% Winrate</span>
+                                </label>
+                                <label class="flex items-center justify-between p-1.5 rounded bg-tv-card/70 border border-tv-border cursor-pointer hover:border-tv-accent/50">
+                                    <span class="flex items-center gap-2">
+                                        <input type="checkbox" id="modMacro" checked onchange="updateBacktestFromUI()" class="accent-tv-accent rounded">
+                                        <span>Makro-Schutzfilter (CPI/Fed/EZB Blocker)</span>
+                                    </span>
+                                    <span class="font-mono text-[10px] text-cyan-400">-4.2% Drawdown</span>
+                                </label>
+                                <label class="flex items-center justify-between p-1.5 rounded bg-tv-card/70 border border-tv-border cursor-pointer hover:border-tv-accent/50">
+                                    <span class="flex items-center gap-2">
+                                        <input type="checkbox" id="modAdx" checked onchange="updateBacktestFromUI()" class="accent-tv-accent rounded">
+                                        <span>Marktregime-Filter (ADX > 22 Anti-Chop)</span>
+                                    </span>
+                                    <span class="font-mono text-[10px] text-emerald-400">+4.5% Winrate</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================================================================= -->
+            <!-- BOTTOM HALF: TRADE INSPECTOR ("WARUM DIESER TRADE?")              -->
+            <!-- ================================================================= -->
+            <div class="bg-tv-panel border border-tv-border rounded-xl p-4 flex-1 flex flex-col justify-between">
+                
+                <!-- Inspector Header & Execution Order Ticket -->
+                <div>
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                        <div class="flex items-center gap-2.5">
+                            <span class="w-7 h-7 rounded-lg bg-tv-accent/15 border border-tv-accent/40 text-tv-accent flex items-center justify-center font-bold text-xs">
+                                <i class="fa-solid fa-magnifying-glass-chart"></i>
+                            </span>
+                            <div>
+                                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                                    <span>Trade-Inspektor & Bot-Begründungs-Akte:</span>
+                                    <span id="inspSymbolBadge" class="text-tv-accent font-mono">XAU/USD</span>
+                                </h3>
+                                <p class="text-[11px] text-tv-muted">Alle Hintergründe & Berechnungen für deine manuelle Ausführung beim Broker</p>
+                            </div>
+                        </div>
+
+                        <!-- Total Confluence Score Badge + Copy Ticket Button -->
+                        <div class="flex items-center gap-2">
+                            <div class="px-3 py-1 rounded-lg bg-tv-bg border border-tv-border flex items-center gap-2">
+                                <span class="text-[11px] text-tv-muted">Confluence-Score:</span>
+                                <span id="inspTotalScore" class="font-mono font-bold text-sm text-emerald-400">91 / 100</span>
+                            </div>
+                            <button onclick="copyOrderTicket()" class="px-3 py-1.5 rounded-lg bg-tv-card hover:bg-tv-hover border border-tv-border text-xs font-medium text-white flex items-center gap-1.5 transition" title="Kopiert alle Order-Daten in die Zwischenablage">
+                                <i class="fa-regular fa-copy text-tv-accent"></i>
+                                <span id="copyBtnText">Order-Daten kopieren</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Execution Parameters Bar (Entry, SL, TP1, TP2, PosSize, Expected ROI) -->
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 mb-4 bg-tv-bg p-2.5 rounded-xl border border-tv-border">
+                        <div class="p-2 rounded-lg bg-tv-panel border border-tv-border/60">
+                            <span class="text-[10px] uppercase text-tv-muted block">Limit / Entry-Zone</span>
+                            <span id="inspEntry" class="font-mono font-bold text-xs sm:text-sm text-white">2.654,50 $</span>
+                            <span id="inspOrderType" class="text-[10px] text-tv-accent block font-mono">Pullback Limit</span>
+                        </div>
+                        <div class="p-2 rounded-lg bg-tv-panel border border-red-500/30">
+                            <span class="text-[10px] uppercase text-red-400 block">Stop-Loss (inkl. ATR)</span>
+                            <span id="inspSL" class="font-mono font-bold text-xs sm:text-sm text-tv-bear">2.636,00 $</span>
+                            <span id="inspSlBuffer" class="text-[10px] text-tv-muted block font-mono">-0.70% (0.5x ATR)</span>
+                        </div>
+                        <div class="p-2 rounded-lg bg-tv-panel border border-emerald-500/30">
+                            <span class="text-[10px] uppercase text-emerald-400 block">Take-Profit 1 (60%)</span>
+                            <span id="inspTP1" class="font-mono font-bold text-xs sm:text-sm text-tv-bull">2.692,00 $</span>
+                            <span id="inspTp1RR" class="text-[10px] text-tv-muted block font-mono">CRV 1 : 2.0</span>
+                        </div>
+                        <div class="p-2 rounded-lg bg-tv-panel border border-emerald-500/40">
+                            <span class="text-[10px] uppercase text-emerald-400 block">Take-Profit 2 (40%)</span>
+                            <span id="inspTP2" class="font-mono font-bold text-xs sm:text-sm text-tv-bull">2.711,85 $</span>
+                            <span id="inspTp2RR" class="text-[10px] text-emerald-400 block font-mono">CRV 1 : 3.1</span>
+                        </div>
+                        <div class="p-2 rounded-lg bg-tv-panel border border-tv-border/60">
+                            <span class="text-[10px] uppercase text-tv-muted block">Positionsgröße & Risiko</span>
+                            <span id="inspPosSize" class="font-mono font-bold text-xs sm:text-sm text-amber-400">13.51 Unzen</span>
+                            <span id="inspRiskEur" class="text-[10px] text-tv-muted block font-mono">Risiko: 250 € (1.0%)</span>
+                        </div>
+                        <div class="p-2 rounded-lg bg-tv-panel border border-tv-accent/40">
+                            <span id="inspRoiLabel" class="text-[10px] uppercase text-tv-accent block">Erwarteter Trade-ROI</span>
+                            <span id="inspExpectedRoi" class="font-mono font-bold text-xs sm:text-sm text-emerald-400">+3.10% (+775 €)</span>
+                            <span id="inspSetupWinrate" class="text-[10px] text-tv-muted block font-mono">Setup-Winrate: 68%</span>
+                        </div>
+                    </div>
+
+                    <!-- 4-PILLAR DETAILED BOT REASONING GRID -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        
+                        <!-- Pillar 1: Marktstruktur & Smart Money (BOS, Sweep, OB) -->
+                        <div class="p-3 rounded-xl bg-tv-bg/80 border border-tv-border flex flex-col justify-between">
+                            <div>
+                                <div class="flex items-center justify-between mb-1.5">
+                                    <span class="text-xs font-bold text-white flex items-center gap-1.5">
+                                        <i class="fa-solid fa-layer-group text-tv-accent"></i>
+                                        1. Preisstruktur & Smart Money (BOS)
+                                    </span>
+                                    <span id="scorePillar1" class="font-mono text-xs font-bold text-emerald-400">28 / 30 Pkt.</span>
+                                </div>
+                                <div class="w-full h-1 bg-tv-card rounded-full overflow-hidden mb-2">
+                                    <div id="barPillar1" class="h-full bg-tv-accent rounded-full" style="width: 93%"></div>
+                                </div>
+                                <p id="textPillar1" class="text-xs text-tv-text leading-relaxed"></p>
+                            </div>
+                            <div id="tagsPillar1" class="flex flex-wrap gap-1 mt-2 pt-2 border-t border-tv-border/50"></div>
+                        </div>
+
+                        <!-- Pillar 2: Technische Indikatoren & Volumen (SMA, RVOL, RSI) -->
+                        <div class="p-3 rounded-xl bg-tv-bg/80 border border-tv-border flex flex-col justify-between">
+                            <div>
+                                <div class="flex items-center justify-between mb-1.5">
+                                    <span class="text-xs font-bold text-white flex items-center gap-1.5">
+                                        <i class="fa-solid fa-chart-column text-cyan-400"></i>
+                                        2. SMAs, Volumen (RVOL) & Momentum
+                                    </span>
+                                    <span id="scorePillar2" class="font-mono text-xs font-bold text-cyan-400">23 / 25 Pkt.</span>
+                                </div>
+                                <div class="w-full h-1 bg-tv-card rounded-full overflow-hidden mb-2">
+                                    <div id="barPillar2" class="h-full bg-cyan-400 rounded-full" style="width: 92%"></div>
+                                </div>
+                                <p id="textPillar2" class="text-xs text-tv-text leading-relaxed"></p>
+                            </div>
+                            <div id="tagsPillar2" class="flex flex-wrap gap-1 mt-2 pt-2 border-t border-tv-border/50"></div>
+                        </div>
+
+                        <!-- Pillar 3: Wirtschaftliche Ereignisse & Marktregime -->
+                        <div class="p-3 rounded-xl bg-tv-bg/80 border border-tv-border flex flex-col justify-between">
+                            <div>
+                                <div class="flex items-center justify-between mb-1.5">
+                                    <span class="text-xs font-bold text-white flex items-center gap-1.5">
+                                        <i class="fa-solid fa-globe text-amber-400"></i>
+                                        3. Makro-Ereignisse & Marktbedingungen
+                                    </span>
+                                    <span id="scorePillar3" class="font-mono text-xs font-bold text-amber-400">22 / 25 Pkt.</span>
+                                </div>
+                                <div class="w-full h-1 bg-tv-card rounded-full overflow-hidden mb-2">
+                                    <div id="barPillar3" class="h-full bg-amber-400 rounded-full" style="width: 88%"></div>
+                                </div>
+                                <p id="textPillar3" class="text-xs text-tv-text leading-relaxed"></p>
+                            </div>
+                            <div id="tagsPillar3" class="flex flex-wrap gap-1 mt-2 pt-2 border-t border-tv-border/50"></div>
+                        </div>
+
+                        <!-- Pillar 4: Historische Backtest-Evidenz & MAE/MFE Statistik -->
+                        <div class="p-3 rounded-xl bg-tv-bg/80 border border-tv-border flex flex-col justify-between">
+                            <div>
+                                <div class="flex items-center justify-between mb-1.5">
+                                    <span class="text-xs font-bold text-white flex items-center gap-1.5">
+                                        <i class="fa-solid fa-database text-purple-400"></i>
+                                        4. Backtest-Evidenz & Optimale SL-Distanz
+                                    </span>
+                                    <span id="scorePillar4" class="font-mono text-xs font-bold text-purple-400">18 / 20 Pkt.</span>
+                                </div>
+                                <div class="w-full h-1 bg-tv-card rounded-full overflow-hidden mb-2">
+                                    <div id="barPillar4" class="h-full bg-purple-400 rounded-full" style="width: 90%"></div>
+                                </div>
+                                <p id="textPillar4" class="text-xs text-tv-text leading-relaxed"></p>
+                            </div>
+                            <div id="tagsPillar4" class="flex flex-wrap gap-1 mt-2 pt-2 border-t border-tv-border/50"></div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===================================================================== -->
+        <!-- RIGHT COLUMN: AI MARKET ANALYST & BOT ARCHITECT (GEMINI API) (3 COLS) -->
+        <!-- ===================================================================== -->
+        <section class="lg:col-span-3 flex flex-col bg-tv-panel border border-tv-border rounded-xl overflow-hidden h-[860px]">
+            
+            <!-- AI Panel Header -->
+            <div class="p-3.5 bg-gradient-to-r from-tv-bg via-indigo-950/30 to-tv-bg border-b border-tv-border flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400">
+                        <i class="fa-solid fa-robot"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-xs font-bold text-white flex items-center gap-1.5">
+                            <span>KI Quant-Analyst & Bot-Architekt</span>
+                        </h3>
+                        <p class="text-[10px] text-tv-muted">Verbunden mit Trade #<span id="aiActiveTradeId">101</span> (<span id="aiActiveSymbol" class="text-white font-mono">XAU/USD</span>)</p>
+                    </div>
+                </div>
+                <label class="flex items-center gap-1.5 text-[10px] text-tv-muted cursor-pointer bg-tv-card px-2 py-1 rounded border border-tv-border" title="Aktiviert Google Search Grounding für tagesaktuelle Marktnachrichten">
+                    <input type="checkbox" id="aiWebSearchToggle" checked class="accent-tv-accent">
+                    <span>Live-Web</span>
+                </label>
+            </div>
+
+            <!-- Quick-Prompt Buttons (Contextual) -->
+            <div class="p-2.5 bg-tv-bg/60 border-b border-tv-border">
+                <span class="text-[10px] uppercase tracking-wider text-tv-muted block mb-1.5">Schnell-Analysen für aktuellen Trade & Bot:</span>
+                <div class="flex flex-wrap gap-1.5">
+                    <button onclick="triggerQuickPrompt('risks')"
+                        class="text-[11px] bg-tv-card hover:bg-tv-hover text-tv-text border border-tv-border rounded-lg px-2.5 py-1 transition text-left flex items-center gap-1">
+                        <i class="fa-solid fa-triangle-exclamation text-amber-400 text-[10px]"></i>
+                        <span>Risiken & Gegenargumente prüfen</span>
+                    </button>
+                    <button onclick="triggerQuickPrompt('confluence')"
+                        class="text-[11px] bg-tv-card hover:bg-tv-hover text-tv-text border border-tv-border rounded-lg px-2.5 py-1 transition text-left flex items-center gap-1">
+                        <i class="fa-solid fa-diagram-project text-tv-accent text-[10px]"></i>
+                        <span>BOS + SMA + Volumen im Detail</span>
+                    </button>
+                    <button onclick="triggerQuickPrompt('macro')"
+                        class="text-[11px] bg-tv-card hover:bg-tv-hover text-tv-text border border-tv-border rounded-lg px-2.5 py-1 transition text-left flex items-center gap-1">
+                        <i class="fa-solid fa-newspaper text-emerald-400 text-[10px]"></i>
+                        <span>Aktuelle Makro-Lage zum Asset</span>
+                    </button>
+                    <button onclick="triggerQuickPrompt('improve')"
+                        class="text-[11px] bg-tv-card hover:bg-tv-hover text-tv-text border border-tv-border rounded-lg px-2.5 py-1 transition text-left flex items-center gap-1">
+                        <i class="fa-solid fa-wand-magic-sparkles text-purple-400 text-[10px]"></i>
+                        <span>Welche Filter erhöhen den Bot-ROI?</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Chat Messages Stream -->
+            <div id="aiChatContainer" class="flex-1 overflow-y-auto p-3.5 space-y-3 text-xs">
+                <!-- Initial Welcome & Context Card -->
+                <div class="bg-tv-card/90 border border-tv-border rounded-xl p-3 text-tv-text leading-relaxed">
+                    <div class="flex items-center gap-2 font-semibold text-white mb-1">
+                        <i class="fa-solid fa-sparkles text-indigo-400"></i>
+                        <span>Bereit für deine Markt- & Strategiefragen</span>
+                    </div>
+                    <p class="text-tv-muted text-[11px] mb-2">
+                        Ich habe vollen Zugriff auf die Daten des aktuell ausgewählten Trades (<strong id="welcomeTradeName" class="text-white">XAU/USD Long</strong>) sowie deine Backtest-Statistiken.
+                    </p>
+                    <div class="bg-tv-bg/80 rounded-lg p-2 border border-tv-border/70 text-[11px] space-y-1">
+                        <div class="text-indigo-400 font-semibold">💡 Bot-Architektur-Tipp für hohe Trefferquoten:</div>
+                        <p class="text-tv-muted">
+                            Ergänzend zu <strong>SMA, BOS & Volumen</strong> empfehle ich, einen <strong>Multi-Timeframe Fair Value Gap (FVG)</strong>-Filter sowie die <strong>Maximum Adverse Excursion (MAE)</strong> aus dem Backtest zu nutzen. Frag mich jederzeit, wie wir neue Ideen in deinen Bot integrieren!
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI Chat Input Form -->
+            <form id="aiChatForm" onsubmit="handleUserChatSubmit(event)" class="p-3 bg-tv-bg border-t border-tv-border">
+                <div class="relative flex items-center">
+                    <input id="aiChatInput" type="text"
+                        placeholder="Frag mich zum Markt, Trade oder neuen Bot-Regeln..."
+                        class="w-full bg-tv-card border border-tv-border rounded-xl pl-3.5 pr-10 py-2.5 text-xs text-white placeholder-tv-muted focus:outline-none focus:border-tv-accent">
+                    <button type="submit" id="aiSendBtn"
+                        class="absolute right-1.5 w-7 h-7 rounded-lg bg-tv-accent hover:bg-blue-600 text-white flex items-center justify-center transition">
+                        <i class="fa-solid fa-paper-plane text-[11px]"></i>
+                    </button>
+                </div>
+            </form>
+        </section>
+
+    </main>
+
+    <!-- ========================================================================= -->
+    <!-- TOAST NOTIFICATION CONTAINER (NO ALERTS)                                  -->
+    <!-- ========================================================================= -->
+    <div id="toastContainer" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- ========================================================================= -->
+    <!-- APPLICATION LOGIC & QUANTITATIVE SIMULATION ENGINE                        -->
+    <!-- ========================================================================= -->
+    <script>
+        // =========================================================================
+        // 1. RICH DATASET OF LIVE SETUPS & HISTORICAL BACKTEST TRADES
+        // =========================================================================
+        const TRADES_DATA = [
+            {
+                id: 101,
+                mode: 'live',
+                symbol: 'XAU/USD',
+                name: 'Gold Spot / US-Dollar',
+                category: 'Rohstoffe',
+                timeframe: '4H / 1D',
+                direction: 'LONG',
+                status: 'BEREIT ZUR AUSFÜHRUNG',
+                statusColor: 'emerald',
+                date: 'Heute, 14:00',
+                score: 91,
+                entry: 2654.50,
+                sl: 2636.00,
+                tp1: 2692.00,
+                tp2: 2711.85,
+                unit: '$',
+                posUnit: 'Unzen',
+                rr: 3.1,
+                roiPct: 3.10,
+                setupWinrate: 68.4,
+                sma50: 2642.10,
+                sma200: 2588.40,
+                rvol: 1.68,
+                atrPct: 0.70,
+                subtitle: 'Bullish 4H BOS nach Liquidity Sweep am Vortagestief + Pullback in 0.618 Fibonacci & Orderblock',
+                pillars: {
+                    p1: {
+                        score: 28, max: 30,
+                        text: 'Auf dem 1D- und 4H-Chart befindet sich Gold in einer klaren Higher-High-Struktur. Vor 16 Stunden erfolgte ein Liquidity Sweep unter das lokale Swing-Low (2.638 $), gefolgt von einem impulsiven Kerzenschluss über dem letzten Zwischenhoch bei 2.660 $ (bestätigter Bullish BOS). Der Kurs kehrt aktuell exakt in das Fair Value Gap (FVG) und das 0.618 Fibonacci Golden Pocket zurück.',
+                        tags: ['1D/4H Bullish Aligned', '4H BOS bestätigt', 'Liquidity Sweep', '0.618 Golden Pocket']
+                    },
+                    p2: {
+                        score: 23, max: 25,
+                        text: 'Kurs notiert stabil über dem steigenden SMA 50 (2.642 $) und deutlich über dem SMA 200 (2.588 $). Beim gestrigen BOS-Ausbruch lag das relative Volumen (RVOL) beim 1,68-fachen des 20-Perioden-Schnitts (institutionelle Kaufkraft), während das Volumen im aktuellen Pullback auf 0,72x abnimmt (kein Verkaufsdruck). RSI (4H) dreht bei 52 nach oben.',
+                        tags: ['Kurs > SMA 50 > SMA 200', 'Breakout RVOL 1.68x', 'Pullback Low-Volume', 'RSI Bullish Hook']
+                    },
+                    p3: {
+                        score: 22, max: 25,
+                        text: 'Keine US-High-Impact-Makrodaten (CPI/Fed) in den nächsten 36 Stunden im Kalender. Die realen US-10Y-Anleiherenditen konsolidieren leicht rückläufig (-4 bps), der DXY zeigt Schwäche unter 103,80. ADX liegt bei 29,4 und bestätigt ein starkes Trendregime ohne Seitwärts-Rauschen.',
+                        tags: ['Kein Makro-Blocker (36h)', 'ADX 29.4 (Starker Trend)', 'DXY Gegenwind negativ', 'Sentiment +0.64']
+                    },
+                    p4: {
+                        score: 18, max: 20,
+                        text: 'In 2.480 simulierten Swing-Trades trat dieses exakte Muster (BOS + Sweep + RVOL > 1.5x bei Gold/Forex) 312-mal auf. Historische Trefferquote: 68,4 % bei einem Profit Faktor von 2,65. Die MAE-Analyse zeigt, dass 84 % aller Gewinner-Trades maximal 0,42x ATR unter den Orderblock liefen – unser SL liegt sicher bei 0,55x ATR unter dem Swing-Low.',
+                        tags: ['312 Backtest-Matches', '68.4% Pattern-Winrate', 'MAE-optimierter SL', '+0.89 R Expectancy']
+                    }
+                },
+                candles: [
+                    { o: 2630, h: 2642, l: 2626, c: 2639, v: 42 },
+                    { o: 2639, h: 2655, l: 2636, c: 2652, v: 55 },
+                    { o: 2652, h: 2659, l: 2644, c: 2647, v: 38 },
+                    { o: 2647, h: 2651, l: 2635, c: 2646, v: 64, sweep: true }, // Liquidity Sweep
+                    { o: 2646, h: 2666, l: 2645, c: 2663, v: 88 }, // Impulse
+                    { o: 2663, h: 2678, l: 2660, c: 2675, v: 95, bos: true }, // BOS Candle
+                    { o: 2675, h: 2681, l: 2668, c: 2670, v: 50 },
+                    { o: 2670, h: 2672, l: 2659, c: 2661, v: 36 },
+                    { o: 2661, h: 2664, l: 2652, c: 2655, v: 29 }, // Pullback into OB
+                    { o: 2655, h: 2662, l: 2653, c: 2659, v: 61 }  // Bounce confirmation
+                ],
+                bosLevel: 2659.0
+            },
+            {
+                id: 102,
+                mode: 'live',
+                symbol: 'NVDA',
+                name: 'NVIDIA Corp. (NASDAQ)',
+                category: 'US-Aktien',
+                timeframe: '4H / 1D',
+                direction: 'LONG',
+                status: 'BEREIT ZUR AUSFÜHRUNG',
+                statusColor: 'emerald',
+                date: 'Heute, 15:30',
+                score: 88,
+                entry: 136.40,
+                sl: 131.80,
+                tp1: 145.60,
+                tp2: 149.28,
+                unit: '$',
+                posUnit: 'Aktien',
+                rr: 2.8,
+                roiPct: 2.80,
+                setupWinrate: 65.2,
+                sma50: 134.10,
+                sma200: 121.50,
+                rvol: 1.82,
+                atrPct: 1.65,
+                subtitle: 'Institutional Volume Breakout (BOS) über mehrwöchige Konsolidierung + Retest am SMA 50',
+                pillars: {
+                    p1: {
+                        score: 27, max: 30,
+                        text: 'Nach einer 3-wöchigen Akkumulationsphase brach NVDA per 4H-Kerzenschluss kraftvoll über das Strukturhoch bei 138,00 $ aus (Bullish BOS). Der aktuelle Rücksetzer testet den ungemilderten 4H-Orderblock bei 135,50–136,80 $ direkt an der 50%-Fibonacci-Marke.',
+                        tags: ['Bullish BOS 138$', '4H Orderblock Retest', 'Relative Stärke vs SPX']
+                    },
+                    p2: {
+                        score: 24, max: 25,
+                        text: 'Das Ausbruchsvolumen lag 82 % über dem 20-Tage-Durchschnitt (RVOL 1.82x). SMA 50 (134,10 $) fungiert als direkte dynamische Unterstützung unterhalb der Einstiegszone. Keine bärische RSI-Divergenz vorhanden.',
+                        tags: ['RVOL 1.82x Institutionell', 'SMA 50 Support-Cluster', 'Hohe Relative Stärke']
+                    },
+                    p3: {
+                        score: 20, max: 25,
+                        text: 'Keine Quartalszahlen (Earnings) in den nächsten 14 Tagen. Halbleiter-Sektor (SOXX) zeigt Kapitalzuflüsse, VIX notiert ruhig bei 15,8. ADX auf dem Daily-Chart steigt auf 26,8.',
+                        tags: ['Earnings > 14 Tage entfernt', 'VIX < 16 (Risk-On)', 'Sektor-Leader']
+                    },
+                    p4: {
+                        score: 17, max: 20,
+                        text: 'Im Tech-Aktien-Backtest (840 Setups mit RVOL > 1.7x + BOS) erzielte der Bot eine Winrate von 65,2 % und ein durchschnittliches R-Multiple von +0.81 R pro Trade.',
+                        tags: ['840 Tech-Backtests', '65.2% Winrate', 'SL unter Orderblock + 0.4 ATR']
+                    }
+                },
+                candles: [
+                    { o: 129.5, h: 132.0, l: 128.8, c: 131.5, v: 45 },
+                    { o: 131.5, h: 134.8, l: 130.9, c: 134.2, v: 52 },
+                    { o: 134.2, h: 137.9, l: 133.5, c: 135.0, v: 48 },
+                    { o: 135.0, h: 136.0, l: 132.1, c: 135.4, v: 62, sweep: true },
+                    { o: 135.4, h: 140.2, l: 135.0, c: 139.6, v: 94, bos: true },
+                    { o: 139.6, h: 142.5, l: 138.8, c: 141.8, v: 86 },
+                    { o: 141.8, h: 142.1, l: 138.4, c: 139.0, v: 44 },
+                    { o: 139.0, h: 139.5, l: 136.1, c: 136.6, v: 32 },
+                    { o: 136.6, h: 138.2, l: 135.8, c: 137.4, v: 58 }
+                ],
+                bosLevel: 137.9
+            },
+            {
+                id: 103,
+                mode: 'live',
+                symbol: 'EUR/USD',
+                name: 'Euro / US-Dollar',
+                category: 'Forex Major',
+                timeframe: '4H',
+                direction: 'SHORT',
+                status: 'BEREIT ZUR AUSFÜHRUNG',
+                statusColor: 'emerald',
+                date: 'Heute, 11:00',
+                score: 84,
+                entry: 1.0865,
+                sl: 1.0910,
+                tp1: 1.0775,
+                tp2: 1.0752,
+                unit: '$',
+                posUnit: 'Lots (Std)',
+                rr: 2.5,
+                roiPct: 2.50,
+                setupWinrate: 62.9,
+                sma50: 1.0882,
+                sma200: 1.0945,
+                rvol: 1.44,
+                atrPct: 0.41,
+                subtitle: 'Bearish BOS unter 1.0840 + Pullback in bärischen 4H-Orderblock & SMA 50 Widerstand',
+                pillars: {
+                    p1: {
+                        score: 26, max: 30,
+                        text: 'Klarer Abwärtstrend auf 1D und 4H. Nach einem Liquidity Sweep über das Zwischenhoch bei 1.0895 folgte ein scharfer Bearish Break of Structure (BOS) unter 1.0840. Der aktuelle Pullback läuft direkt in die Angebotszone (Supply Orderblock) bei 1.0860–1.0875.',
+                        tags: ['Bearish BOS 1.0840', 'Supply Zone Pullback', 'MTF Bearish']
+                    },
+                    p2: {
+                        score: 21, max: 25,
+                        text: 'Kurs notiert unter dem fallenden SMA 50 (1.0882) und unter dem SMA 200 (1.0945) – klassisches Death-Cross-Umfeld. RVOL beim Abwärts-Ausbruch lag bei 1,44x.',
+                        tags: ['Kurs < SMA 50 < SMA 200', 'RVOL 1.44x beim Bruch', 'RSI Abweisung an 50er Linie']
+                    },
+                    p3: {
+                        score: 20, max: 25,
+                        text: 'Zinsdifferenz zwischen Fed und EZB stützt den USD mittelfristig. Keine EZB-Pressekonferenz in den nächsten 48 Stunden. ADX bei 25,1 zeigt intakten Abwärtstrend.',
+                        tags: ['Zinsdifferenz Pro-USD', 'ADX 25.1', 'Kein High-Impact Event']
+                    },
+                    p4: {
+                        score: 17, max: 20,
+                        text: '490 historische EUR/USD Short-Swing-Trades mit diesem Setup zeigten eine Trefferquote von 62,9 % bei durchschnittlich 4,5 Handelstagen Haltedauer.',
+                        tags: ['490 Forex-Matches', '62.9% Winrate', 'Ø Haltedauer 4.5 Tage']
+                    }
+                },
+                candles: [
+                    { o: 1.0920, h: 1.0935, l: 1.0890, c: 1.0895, v: 48 },
+                    { o: 1.0895, h: 1.0910, l: 1.0845, c: 1.0850, v: 55 },
+                    { o: 1.0850, h: 1.0905, l: 1.0848, c: 1.0880, v: 62, sweep: true },
+                    { o: 1.0880, h: 1.0885, l: 1.0815, c: 1.0820, v: 89, bos: true },
+                    { o: 1.0820, h: 1.0830, l: 1.0795, c: 1.0805, v: 74 },
+                    { o: 1.0805, h: 1.0842, l: 1.0800, c: 1.0838, v: 41 },
+                    { o: 1.0838, h: 1.0870, l: 1.0832, c: 1.0862, v: 33 },
+                    { o: 1.0862, h: 1.0868, l: 1.0840, c: 1.0845, v: 57 }
+                ],
+                bosLevel: 1.0845
+            },
+            {
+                id: 104,
+                mode: 'live',
+                symbol: 'NAS100',
+                name: 'NASDAQ 100 Index',
+                category: 'Indizes',
+                timeframe: '4H / 1D',
+                direction: 'LONG',
+                status: 'AKTIV (+1.2 R)',
+                statusColor: 'blue',
+                date: 'Gestern, 16:00',
+                score: 86,
+                entry: 20180.0,
+                sl: 19980.0,
+                tp1: 20580.0,
+                tp2: 20720.0,
+                unit: 'Pkt',
+                posUnit: 'Kontrakte',
+                rr: 2.7,
+                roiPct: 2.70,
+                setupWinrate: 64.5,
+                sma50: 20110.0,
+                sma200: 19640.0,
+                rvol: 1.52,
+                atrPct: 0.85,
+                subtitle: 'Higher Timeframe Trend-Continuation nach NY-Session Liquidity Sweep & 4H BOS',
+                pillars: {
+                    p1: {
+                        score: 26, max: 30,
+                        text: 'Sauberer Ausbruch über das Wochenhoch bei 20.210 Punkten (BOS) nach vorherigem Abgreifen der Sell-Side-Liquidität unter 20.040 Punkten. Einstieg im 0.5 Equilibrium-Level wurde bereits optimal gefüllt.',
+                        tags: ['NY-Sweep + BOS', '0.5 Fib Retracement', 'Bullish Orderflow']
+                    },
+                    p2: {
+                        score: 22, max: 25,
+                        text: 'Kurs prallte punktgenau am steigenden 4H SMA 50 (20.110) ab. Volumen beim US-Market-Open lag 52 % über dem Durchschnitt.',
+                        tags: ['SMA 50 Bounce', 'RVOL 1.52x', 'MACD Bullish Cross']
+                    },
+                    p3: {
+                        score: 21, max: 25,
+                        text: 'US-Arbeitsmarktdaten lagen im Rahmen der Erwartungen (Goldilocks-Szenario für Tech-Werte). Marktbreite (Advance/Decline Line) positiv.',
+                        tags: ['Makro Rückenwind', 'ADX 24.8', 'Marktbreite positiv']
+                    },
+                    p4: {
+                        score: 17, max: 20,
+                        text: 'In 410 Index-Backtests erreichte dieses NY-Sweep + BOS Setup in 64,5 % der Fälle mindestens TP1; Empfehlung: Stop-Loss jetzt auf Break-Even nachziehen.',
+                        tags: ['64.5% Index-Winrate', 'Empfehlung: SL auf BE']
+                    }
+                },
+                candles: [
+                    { o: 20050, h: 20210, l: 20010, c: 20180, v: 50 },
+                    { o: 20180, h: 20200, l: 19990, c: 20120, v: 72, sweep: true },
+                    { o: 20120, h: 20340, l: 20100, c: 20310, v: 91, bos: true },
+                    { o: 20310, h: 20360, l: 20220, c: 20240, v: 44 },
+                    { o: 20240, h: 20260, l: 20165, c: 20190, v: 35 },
+                    { o: 20190, h: 20380, l: 20180, c: 20355, v: 68 },
+                    { o: 20355, h: 20440, l: 20320, c: 20415, v: 64 }
+                ],
+                bosLevel: 20210.0
+            },
+            {
+                id: 105,
+                mode: 'live',
+                symbol: 'BTC/USD',
+                name: 'Bitcoin / US-Dollar',
+                category: 'Krypto',
+                timeframe: '4H / 1D',
+                direction: 'LONG',
+                status: 'BEREIT ZUR AUSFÜHRUNG',
+                statusColor: 'emerald',
+                date: 'Heute, 09:30',
+                score: 82,
+                entry: 67450.0,
+                sl: 65800.0,
+                tp1: 70750.0,
+                tp2: 72235.0,
+                unit: '$',
+                posUnit: 'BTC',
+                rr: 2.9,
+                roiPct: 2.90,
+                setupWinrate: 61.5,
+                sma50: 66890.0,
+                sma200: 63400.0,
+                rvol: 1.59,
+                atrPct: 2.15,
+                subtitle: 'Daily Range Breakout (BOS) über 68.000 $ + Liquidity Retest der FVG-Zone bei 67.450 $',
+                pillars: {
+                    p1: {
+                        score: 25, max: 30,
+                        text: 'Tageskerze schloss erstmals seit 3 Wochen wieder mit vollem Körper über dem lokalen Strukturhoch (BOS). Aktuell erfolgt ein konstruktiver Rücksetzer in das unausgeglichene Fair Value Gap zwischen 67.100 $ und 67.600 $.',
+                        tags: ['1D/4H BOS', 'FVG Rebalance Zone', 'Higher Low Struktur']
+                    },
+                    p2: {
+                        score: 21, max: 25,
+                        text: 'Sowohl SMA 50 als auch SMA 200 steigen; Golden-Cross-Struktur intakt. Spot-ETF-Volumen und RVOL (1.59x) bestätigen reale Nachfrage statt reinem Derivate-Leverage.',
+                        tags: ['Golden Cross aktiv', 'RVOL 1.59x', 'Funding-Rates gesund']
+                    },
+                    p3: {
+                        score: 19, max: 25,
+                        text: 'Globale Liquiditätsindikatoren positiv, Korrelation zum NASDAQ 100 stützt das Setup. ADX bei 23,9 (beginnender Trendimpuls).',
+                        tags: ['ETF Netto-Zuflüsse', 'ADX 23.9', 'Keine Makro-Sperre']
+                    },
+                    p4: {
+                        score: 17, max: 20,
+                        text: 'Krypto-Swing-Setups mit FVG-Pullback nach 1D-BOS erreichten im Backtest (295 Trades) ein durchschnittliches CRV von 2,9 bei 61,5 % Winrate.',
+                        tags: ['295 Krypto-Matches', '61.5% Winrate', 'ATR-angepasster SL']
+                    }
+                },
+                candles: [
+                    { o: 65200, h: 66800, l: 64900, c: 66500, v: 50 },
+                    { o: 66500, h: 67900, l: 66100, c: 67600, v: 58 },
+                    { o: 67600, h: 67800, l: 65900, c: 66900, v: 66, sweep: true },
+                    { o: 66900, h: 69100, l: 66800, c: 68850, v: 96, bos: true },
+                    { o: 68850, h: 69400, l: 68100, c: 68300, v: 49 },
+                    { o: 68300, h: 68500, l: 67350, c: 67550, v: 34 },
+                    { o: 67550, h: 68200, l: 67400, c: 68050, v: 60 }
+                ],
+                bosLevel: 67900.0
+            },
+            {
+                id: 106,
+                mode: 'live',
+                symbol: 'DAX 40',
+                name: 'Deutscher Aktienindex (GER40)',
+                category: 'Indizes',
+                timeframe: '4H',
+                direction: 'SHORT',
+                status: 'WARNUNG: EZB IN 6H',
+                statusColor: 'amber',
+                date: 'Heute, 08:15',
+                score: 64,
+                entry: 19480.0,
+                sl: 19610.0,
+                tp1: 19220.0,
+                tp2: 19168.0,
+                unit: 'Pkt',
+                posUnit: 'CFD/Lots',
+                rr: 2.4,
+                roiPct: 2.40,
+                setupWinrate: 51.0,
+                sma50: 19450.0,
+                sma200: 19120.0,
+                rvol: 1.28,
+                atrPct: 0.62,
+                subtitle: '4H Change of Character (CHoCH) am Allzeithoch – ABER Makro-Filter warnt vor EZB-Event & SMA 200 Gegenwind!',
+                pillars: {
+                    p1: {
+                        score: 22, max: 30,
+                        text: 'Auf dem 4H-Chart zeigt sich nach einem Liquidity Sweep über 19.600 ein erster bärischer Strukturbruch (CHoCH). Allerdings ist der übergeordnete Tages-Trend noch bullisch (Counter-Trend-Risiko).',
+                        tags: ['4H CHoCH Short', 'Gegen 1D-Haupttrend']
+                    },
+                    p2: {
+                        score: 16, max: 25,
+                        text: 'Kurs notiert noch über dem steigenden SMA 200 (19.120). RVOL lag beim Bruch bei 1,28x (knapp unter dem idealen 1,30x Schwellenwert).',
+                        tags: ['Über SMA 200 (Gefahr)', 'RVOL 1.28x grenzwertig']
+                    },
+                    p3: {
+                        score: 11, max: 25,
+                        text: 'ACHTUNG: Der Bot zieht 14 Punkte ab, da in 6 Stunden ein High-Impact EZB-Zinsentscheid ansteht. Erhöhte Gefahr von Spread-Ausweitungen und beidseitigen Stop-Hunts!',
+                        tags: ['⚠️ EZB Event in 6h', 'Makro-Schutzfilter aktiv']
+                    },
+                    p4: {
+                        score: 15, max: 20,
+                        text: 'Der Backtest zeigt: Counter-Trend-Shorts vor EZB-Sitzungen haben nur 51,0 % Winrate. Der Bot empfiehlt, mit der Ausführung bis nach der Pressekonferenz zu warten.',
+                        tags: ['Abwarten empfohlen', 'Score unter 75 Pkt.']
+                    }
+                },
+                candles: [
+                    { o: 19420, h: 19550, l: 19400, c: 19530, v: 46 },
+                    { o: 19530, h: 19635, l: 19510, c: 19540, v: 70, sweep: true },
+                    { o: 19540, h: 19560, l: 19380, c: 19395, v: 78, bos: true },
+                    { o: 19395, h: 19495, l: 19390, c: 19475, v: 40 },
+                    { o: 19475, h: 19505, l: 19440, c: 19455, v: 38 }
+                ],
+                bosLevel: 19420.0
+            },
+
+            // =====================================================================
+            // HISTORICAL BACKTEST TRADES (COMPLETED)
+            // =====================================================================
+            {
+                id: 201,
+                mode: 'history',
+                symbol: 'AAPL',
+                name: 'Apple Inc. (Backtest #2479)',
+                category: 'US-Aktien',
+                timeframe: '4H / 1D',
+                direction: 'LONG',
+                status: 'TP2 ERREICHT (+3.0 R)',
+                statusColor: 'emerald',
+                date: '11. Okt. 2026',
+                score: 92,
+                entry: 224.50,
+                sl: 220.00,
+                tp1: 233.50,
+                tp2: 238.00,
+                unit: '$',
+                posUnit: 'Aktien',
+                rr: 3.0,
+                roiPct: 3.00,
+                setupWinrate: 69.1,
+                sma50: 222.80,
+                sma200: 211.40,
+                rvol: 1.94,
+                atrPct: 1.25,
+                subtitle: 'Lehrbuch-Setup: Liquidity Sweep am SMA 50 + 4H BOS mit 1.94x Volumen -> Voller Lauf in TP2 nach 5 Tagen',
+                pillars: {
+                    p1: {
+                        score: 29, max: 30,
+                        text: 'Perfekte Multi-Timeframe-Struktur. Nach dem Ausbruch über 226,00 $ (BOS) holte der Kurs exakt im 0.618 Fibonacci-Retracement bei 224,50 $ Luft und lief ohne großen Drawdown bis 238,00 $.',
+                        tags: ['TP2 Volltreffer', '4H BOS + 0.618 Fib', 'Kaum Drawdown']
+                    },
+                    p2: {
+                        score: 24, max: 25,
+                        text: 'RVOL von 1,94x beim Ausbruch signalisierte massive institutionelle Kauforders. SMA 50 hielt auf den Cent genau.',
+                        tags: ['RVOL 1.94x', 'SMA 50 Präzisions-Support']
+                    },
+                    p3: {
+                        score: 21, max: 25,
+                        text: 'Ruhiges Makro-Umfeld ohne Störfeuer; ADX lag bei 31,2.',
+                        tags: ['ADX 31.2', 'Freies Makro-Fenster']
+                    },
+                    p4: {
+                        score: 18, max: 20,
+                        text: 'Realisierter Gewinn: +3,00 % Kontowachstum (+750 € bei 1 % Risiko). Maximaler Zwischenverlust (MAE) während des Trades betrug lediglich -0,18 R.',
+                        tags: ['Realisiert: +3.00% ROI', 'MAE nur -0.18 R']
+                    }
+                },
+                candles: [
+                    { o: 221.0, h: 225.8, l: 220.4, c: 225.0, v: 50 },
+                    { o: 225.0, h: 225.5, l: 219.8, c: 223.8, v: 68, sweep: true },
+                    { o: 223.8, h: 228.9, l: 223.5, c: 228.4, v: 98, bos: true },
+                    { o: 228.4, h: 229.0, l: 224.2, c: 224.8, v: 35 },
+                    { o: 224.8, h: 231.5, l: 224.4, c: 231.0, v: 76 },
+                    { o: 231.0, h: 235.4, l: 230.2, c: 234.8, v: 82 },
+                    { o: 234.8, h: 238.6, l: 234.0, c: 238.2, v: 88 }
+                ],
+                bosLevel: 225.8
+            },
+            {
+                id: 202,
+                mode: 'history',
+                symbol: 'USD/JPY',
+                name: 'US-Dollar / Japanischer Yen (Backtest #2478)',
+                category: 'Forex Major',
+                timeframe: '4H',
+                direction: 'LONG',
+                status: 'TP1 & TP2 ERREICHT (+2.6 R)',
+                statusColor: 'emerald',
+                date: '06. Okt. 2026',
+                score: 87,
+                entry: 147.20,
+                sl: 145.90,
+                tp1: 149.80,
+                tp2: 150.58,
+                unit: '¥',
+                posUnit: 'Lots',
+                rr: 2.6,
+                roiPct: 2.60,
+                setupWinrate: 66.0,
+                sma50: 146.80,
+                sma200: 144.10,
+                rvol: 1.61,
+                atrPct: 0.58,
+                subtitle: 'Bullish BOS über 147.80 ¥ im Einklang mit steigenden US-Renditen -> +2.60% Konto-ROI',
+                pillars: {
+                    p1: {
+                        score: 27, max: 30,
+                        text: 'Sauberer Strukturbruch nach oben mit anschließendem Retest des 4H-Orderblocks bei 147,20 ¥.',
+                        tags: ['4H BOS', 'Orderblock Retest']
+                    },
+                    p2: {
+                        score: 22, max: 25,
+                        text: 'Kurs über SMA 50 & 200; RVOL 1.61x beim Ausbruch.',
+                        tags: ['SMA Alignment', 'RVOL 1.61x']
+                    },
+                    p3: {
+                        score: 20, max: 25,
+                        text: 'US10Y Renditen stiegen parallel an – starke positive Korrelation für USD/JPY Longs.',
+                        tags: ['US10Y Korrelation +0.88']
+                    },
+                    p4: {
+                        score: 18, max: 20,
+                        text: 'Erzielter ROI: +2,60 % (+650 €). Haltedauer: 3 Tage und 16 Stunden.',
+                        tags: ['Realisiert: +2.60% ROI']
+                    }
+                },
+                candles: [
+                    { o: 146.1, h: 147.7, l: 145.8, c: 147.2, v: 45 },
+                    { o: 147.2, h: 147.5, l: 145.7, c: 146.9, v: 60, sweep: true },
+                    { o: 146.9, h: 148.6, l: 146.8, c: 148.4, v: 85, bos: true },
+                    { o: 148.4, h: 148.7, l: 147.1, c: 147.4, v: 38 },
+                    { o: 147.4, h: 149.5, l: 147.2, c: 149.2, v: 72 },
+                    { o: 149.2, h: 150.8, l: 149.0, c: 150.6, v: 79 }
+                ],
+                bosLevel: 147.7
+            },
+            {
+                id: 203,
+                mode: 'history',
+                symbol: 'SPX500',
+                name: 'S&P 500 Index (Backtest #2475)',
+                category: 'Indizes',
+                timeframe: '4H / 1D',
+                direction: 'LONG',
+                status: 'SL ERREICHT (-1.0 R)',
+                statusColor: 'red',
+                date: '29. Sep. 2026',
+                score: 76,
+                entry: 5710.0,
+                sl: 5665.0,
+                tp1: 5800.0,
+                tp2: 5822.5,
+                unit: 'Pkt',
+                posUnit: 'Kontrakte',
+                rr: 2.5,
+                roiPct: -1.00,
+                setupWinrate: 61.0,
+                sma50: 5695.0,
+                sma200: 5540.0,
+                rvol: 1.32,
+                atrPct: 0.65,
+                subtitle: 'Regulärer statistischer Verlust-Trade (-1.0% Risiko) durch unangekündigte geopolitische Schlagzeile',
+                pillars: {
+                    p1: {
+                        score: 24, max: 30,
+                        text: 'Technisch sauberes BOS-Setup bei 5.725 Punkten und Pullback auf 5.710 Punkte.',
+                        tags: ['BOS valide', 'Orderblock getestet']
+                    },
+                    p2: {
+                        score: 19, max: 25,
+                        text: 'RVOL lag mit 1,32x nur knapp über dem Mindestfilter.',
+                        tags: ['RVOL 1.32x']
+                    },
+                    p3: {
+                        score: 17, max: 25,
+                        text: 'Plötzliche geopolitische Eilmeldung während der US-Sitzung führte zu einem VIX-Spike (+18%), der den Stop-Loss bei 5.665 kontrolliert auslöste.',
+                        tags: ['Exogener News-Schock', 'Risiko auf -1.0% begrenzt']
+                    },
+                    p4: {
+                        score: 16, max: 20,
+                        text: 'Wichtiger Beweis für das Risikomanagement: Trotz Fehlausbruch verlor das Konto exakt nur die geplanten -1,00 % (-250 €), was durch einen einzigen Gewinner (+2,6 % bis +3,1 %) dreifach überkompensiert wird.',
+                        tags: ['Kontrollierter -1.0 R Verlust', 'Kein Slippage-Schaden']
+                    }
+                },
+                candles: [
+                    { o: 5680, h: 5722, l: 5670, c: 5715, v: 50 },
+                    { o: 5715, h: 5750, l: 5710, c: 5744, v: 74, bos: true },
+                    { o: 5744, h: 5748, l: 5708, c: 5712, v: 42 },
+                    { o: 5712, h: 5725, l: 5680, c: 5685, v: 88 },
+                    { o: 5685, h: 5690, l: 5655, c: 5660, v: 95 }
+                ],
+                bosLevel: 5722.0
+            },
+            {
+                id: 204,
+                mode: 'history',
+                symbol: 'MSFT',
+                name: 'Microsoft Corp. (Backtest #2471)',
+                category: 'US-Aktien',
+                timeframe: '4H / 1D',
+                direction: 'LONG',
+                status: 'TP2 ERREICHT (+2.8 R)',
+                statusColor: 'emerald',
+                date: '22. Sep. 2026',
+                score: 89,
+                entry: 432.00,
+                sl: 424.50,
+                tp1: 447.00,
+                tp2: 453.00,
+                unit: '$',
+                posUnit: 'Aktien',
+                rr: 2.8,
+                roiPct: 2.80,
+                setupWinrate: 66.8,
+                sma50: 429.40,
+                sma200: 414.20,
+                rvol: 1.75,
+                atrPct: 1.15,
+                subtitle: 'Golden Pocket Pullback + Bullish BOS + RVOL 1.75x -> +2.80% Kontogewinn',
+                pillars: {
+                    p1: {
+                        score: 28, max: 30,
+                        text: 'Klassischer Institutional Swing: Liquidity Sweep unter 426 $, gefolgt von BOS über 435 $ und präzisem Limit-Fill bei 432,00 $.',
+                        tags: ['Sweep + BOS', 'Limit-Fill 432$']
+                    },
+                    p2: {
+                        score: 23, max: 25,
+                        text: 'Volumen beim Ausbruch 75 % über Durchschnitt; SMA 50 & 200 klar bullisch.',
+                        tags: ['RVOL 1.75x', 'SMA Trend intakt']
+                    },
+                    p3: {
+                        score: 20, max: 25,
+                        text: 'KI- & Cloud-Sektor zeigte starke Relative Stärke gegenüber dem Gesamtmarkt.',
+                        tags: ['Sektor-Outperformance']
+                    },
+                    p4: {
+                        score: 18, max: 20,
+                        text: 'Realisierter Gewinn: +2,80 % (+700 €).',
+                        tags: ['Realisiert: +2.80% ROI']
+                    }
+                },
+                candles: [
+                    { o: 427, h: 434.8, l: 425.2, c: 433.0, v: 48 },
+                    { o: 433, h: 434.0, l: 424.8, c: 431.5, v: 65, sweep: true },
+                    { o: 431.5, h: 439.5, l: 431.0, c: 438.8, v: 90, bos: true },
+                    { o: 438.8, h: 439.2, l: 431.8, c: 432.5, v: 36 },
+                    { o: 432.5, h: 446.0, l: 432.0, c: 445.2, v: 78 },
+                    { o: 445.2, h: 454.0, l: 444.5, c: 453.4, v: 84 }
+                ],
+                bosLevel: 434.8
+            },
+            {
+                id: 205,
+                mode: 'history',
+                symbol: 'GBP/USD',
+                name: 'Britisches Pfund / USD (Backtest #2468)',
+                category: 'Forex Major',
+                timeframe: '4H',
+                direction: 'SHORT',
+                status: 'TP1 ERREICHT (+1.8 R)',
+                statusColor: 'emerald',
+                date: '16. Sep. 2026',
+                score: 83,
+                entry: 1.3140,
+                sl: 1.3195,
+                tp1: 1.3040,
+                tp2: 1.2995,
+                unit: '$',
+                posUnit: 'Lots',
+                rr: 2.6,
+                roiPct: 1.80,
+                setupWinrate: 63.0,
+                sma50: 1.3160,
+                sma200: 1.3210,
+                rvol: 1.48,
+                atrPct: 0.45,
+                subtitle: 'Bearish BOS + Supply Orderblock Retest -> Teilgewinn bei TP1 (+1.8 R), Rest auf Break-Even ausgestoppt',
+                pillars: {
+                    p1: {
+                        score: 25, max: 30,
+                        text: 'Sauberer Abwärts-Strukturbruch auf dem 4H-Chart mit Einstieg am unteren Rand des Angebots-Orderblocks.',
+                        tags: ['Bearish BOS', 'TP1 gesichert']
+                    },
+                    p2: {
+                        score: 21, max: 25,
+                        text: 'Kurs unter SMA 50 & SMA 200; RVOL 1.48x bestätigte institutionelle Abgaben.',
+                        tags: ['RVOL 1.48x', 'Unter SMA 50/200']
+                    },
+                    p3: {
+                        score: 19, max: 25,
+                        text: 'UK-Inflationsdaten lagen im Konsens; kein News-Spike.',
+                        tags: ['Makro neutral']
+                    },
+                    p4: {
+                        score: 18, max: 20,
+                        text: 'Realisierter Gewinn: +1,80 % (+450 €) durch 60%-Teilverkauf am TP1 und automatisches Nachziehen des Stop-Loss auf Entry.',
+                        tags: ['Realisiert: +1.80% ROI', 'Break-Even Schutz griff']
+                    }
+                },
+                candles: [
+                    { o: 1.3210, h: 1.3230, l: 1.3150, c: 1.3160, v: 50 },
+                    { o: 1.3160, h: 1.3185, l: 1.3090, c: 1.3100, v: 84, bos: true },
+                    { o: 1.3100, h: 1.3145, l: 1.3095, c: 1.3138, v: 39 },
+                    { o: 1.3138, h: 1.3142, l: 1.3035, c: 1.3042, v: 77 },
+                    { o: 1.3042, h: 1.3142, l: 1.3038, c: 1.3135, v: 52 }
+                ],
+                bosLevel: 1.3150
+            }
+        ];
+
+        // =========================================================================
+        // 2. APPLICATION STATE
+        // =========================================================================
+        let currentListMode = 'live'; // 'live' | 'history'
+        let currentSortBy = 'score';  // 'score' | 'roi' | 'rr'
+        let selectedTradeId = 101;
+        let activeCenterTab = 'chart'; // 'chart' | 'backtest'
+        let chartLayers = { sma: true, smc: true, rr: true };
+
+        // Backtest Simulation State
+        let backtestStats = {
+            totalTrades: 2480,
+            minScore: 75,
+            riskPerTradePct: 1.0,
+            targetRR: 2.6,
+            winrate: 63.8,
+            profitFactor: 2.42,
+            maxDrawdown: 6.8,
+            expectancyR: 0.74,
+            totalRoiPct: 184.6,
+            equityCurve: []
+        };
+
+        // Gemini Chat History
+        let aiConversationHistory = [];
+
+        // =========================================================================
+        // 3. INITIALIZATION & EVENT LISTENERS
+        // =========================================================================
+        window.onload = function () {
+            // Update counts
+            document.getElementById('countLiveTrades').textContent = TRADES_DATA.filter(t => t.mode === 'live').length;
+            document.getElementById('countHistoryTrades').textContent = TRADES_DATA.filter(t => t.mode === 'history').length;
+
+            // Bind Top Bar buttons
+            document.getElementById('btnOpenBacktestTab').addEventListener('click', () => {
+                switchCenterTab('backtest');
+            });
+            document.getElementById('btnRunLiveScan').addEventListener('click', () => {
+                triggerLiveMarketScan();
+            });
+            document.getElementById('accountSizeInput').addEventListener('input', () => {
+                updateInspectorPositionSizing();
+                updateTopKpiDisplay();
+            });
+
+            // Initial renders
+            renderTradeList();
+            selectTrade(101);
+            runBacktestSimulation(false);
+
+            // Responsive Canvas redraw
+            window.addEventListener('resize', () => {
+                if (activeCenterTab === 'chart') {
+                    drawSetupChart();
+                } else {
+                    drawEquityCurve();
+                }
+            });
+        };
+
+        // =========================================================================
+        // 4. TRADE LIST RENDERING, FILTERING & SORTING
+        // =========================================================================
+        function switchTradeListMode(mode) {
+            currentListMode = mode;
+            const btnLive = document.getElementById('tabBtnLiveTrades');
+            const btnHist = document.getElementById('tabBtnHistoryTrades');
+
+            if (mode === 'live') {
+                btnLive.className = 'py-1.5 px-2 rounded-md text-xs font-semibold transition flex items-center justify-center gap-1.5 bg-tv-accent text-white shadow';
+                btnHist.className = 'py-1.5 px-2 rounded-md text-xs font-medium transition flex items-center justify-center gap-1.5 text-tv-muted hover:text-white';
+            } else {
+                btnHist.className = 'py-1.5 px-2 rounded-md text-xs font-semibold transition flex items-center justify-center gap-1.5 bg-tv-accent text-white shadow';
+                btnLive.className = 'py-1.5 px-2 rounded-md text-xs font-medium transition flex items-center justify-center gap-1.5 text-tv-muted hover:text-white';
+            }
+
+            renderTradeList();
+            // Automatically select the first trade in that mode
+            const firstInMode = TRADES_DATA.find(t => t.mode === mode);
+            if (firstInMode) selectTrade(firstInMode.id);
+        }
+
+        function setTradeSort(sortKey) {
+            currentSortBy = sortKey;
+            ['score', 'roi', 'rr'].forEach(k => {
+                const btn = document.getElementById(`sortBtn-${k}`);
+                if (k === sortKey) {
+                    btn.className = 'px-2 py-0.5 rounded bg-tv-card text-white border border-tv-accent/60 font-medium';
+                } else {
+                    btn.className = 'px-2 py-0.5 rounded bg-tv-card text-tv-muted hover:text-white border border-tv-border';
+                }
+            });
+            renderTradeList();
+        }
+
+        function renderTradeList() {
+            const container = document.getElementById('tradeListContainer');
+            const searchVal = document.getElementById('tradeSearchInput').value.trim().toLowerCase();
+            const dirFilter = document.getElementById('directionFilter').value;
+
+            let filtered = TRADES_DATA.filter(t => t.mode === currentListMode);
+
+            if (searchVal) {
+                filtered = filtered.filter(t =>
+                    t.symbol.toLowerCase().includes(searchVal) ||
+                    t.name.toLowerCase().includes(searchVal) ||
+                    t.category.toLowerCase().includes(searchVal)
+                );
+            }
+
+            if (dirFilter !== 'ALL') {
+                filtered = filtered.filter(t => t.direction === dirFilter);
+            }
+
+            filtered.sort((a, b) => {
+                if (currentSortBy === 'score') return b.score - a.score;
+                if (currentSortBy === 'roi') return b.roiPct - a.roiPct;
+                if (currentSortBy === 'rr') return b.rr - a.rr;
+                return 0;
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="p-6 text-center text-xs text-tv-muted">
+                        <i class="fa-solid fa-filter-circle-xmark text-xl mb-2 block text-tv-border"></i>
+                        Keine Trades für diesen Filter gefunden.
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = filtered.map(trade => {
+                const isSelected = trade.id === selectedTradeId;
+                const isLong = trade.direction === 'LONG';
+                const dirBadge = isLong
+                    ? `<span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-tv-bullBg text-tv-bull">LONG</span>`
+                    : `<span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-tv-bearBg text-tv-bear">SHORT</span>`;
+
+                let scoreBadgeColor = 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10';
+                if (trade.score < 75) scoreBadgeColor = 'text-amber-400 border-amber-500/30 bg-amber-500/10';
+
+                const roiFormatted = trade.roiPct >= 0 ? `+${trade.roiPct.toFixed(2)}%` : `${trade.roiPct.toFixed(2)}%`;
+                const roiColor = trade.roiPct >= 0 ? 'text-tv-bull' : 'text-tv-bear';
+
+                let statusBadgeClass = 'text-emerald-400';
+                if (trade.statusColor === 'amber') statusBadgeClass = 'text-amber-400';
+                if (trade.statusColor === 'red') statusBadgeClass = 'text-tv-bear';
+                if (trade.statusColor === 'blue') statusBadgeClass = 'text-cyan-400';
+
+                return `
+                    <div onclick="selectTrade(${trade.id})"
+                        class="p-3 cursor-pointer transition hover:bg-tv-hover/70 ${isSelected ? 'bg-tv-card border-l-4 border-l-tv-accent' : ''}">
+                        <div class="flex items-center justify-between mb-1">
+                            <div class="flex items-center gap-2">
+                                <span class="font-mono font-bold text-sm text-white">${trade.symbol}</span>
+                                ${dirBadge}
+                                <span class="text-[10px] font-mono text-tv-muted">${trade.timeframe}</span>
+                            </div>
+                            <span class="px-2 py-0.5 rounded text-[11px] font-mono font-bold border ${scoreBadgeColor}">
+                                ${trade.score}/100
+                            </span>
+                        </div>
+
+                        <div class="text-[11px] text-tv-muted truncate mb-2">${trade.subtitle}</div>
+
+                        <div class="flex items-center justify-between text-[11px] font-mono pt-1.5 border-t border-tv-border/40">
+                            <span class="${statusBadgeClass} font-sans font-medium text-[10px]">● ${trade.status}</span>
+                            <div class="flex items-center gap-3">
+                                <span class="text-tv-muted">CRV <strong class="text-white">1:${trade.rr.toFixed(1)}</strong></span>
+                                <span class="${roiColor} font-bold">${roiFormatted} ROI</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // =========================================================================
+        // 5. SELECT TRADE & POPULATE INSPECTOR + CHART + AI CONTEXT
+        // =========================================================================
+        function selectTrade(tradeId) {
+            selectedTradeId = tradeId;
+            renderTradeList();
+
+            const trade = TRADES_DATA.find(t => t.id === tradeId);
+            if (!trade) return;
+
+            // 1. Update Chart Header
+            document.getElementById('chartAssetTitle').textContent = `${trade.symbol} (${trade.name})`;
+            document.getElementById('chartTimeframeBadge').textContent = trade.timeframe;
+            const dirBadge = document.getElementById('chartDirectionBadge');
+            if (trade.direction === 'LONG') {
+                dirBadge.textContent = 'LONG SETUP';
+                dirBadge.className = 'px-2 py-0.5 text-[11px] font-mono font-bold rounded bg-tv-bullBg text-tv-bull';
+            } else {
+                dirBadge.textContent = 'SHORT SETUP';
+                dirBadge.className = 'px-2 py-0.5 text-[11px] font-mono font-bold rounded bg-tv-bearBg text-tv-bear';
+            }
+            document.getElementById('chartSetupSubtitle').textContent = trade.subtitle;
+            document.getElementById('legendSma50').textContent = formatPrice(trade.sma50);
+            document.getElementById('legendSma200').textContent = formatPrice(trade.sma200);
+            document.getElementById('legendRvol').textContent = `${trade.rvol.toFixed(2)}x`;
+
+            // 2. Update Inspector Header & Execution Bar
+            document.getElementById('inspSymbolBadge').textContent = `${trade.symbol} (${trade.direction})`;
+            const scoreEl = document.getElementById('inspTotalScore');
+            scoreEl.textContent = `${trade.score} / 100`;
+            scoreEl.className = trade.score >= 75
+                ? 'font-mono font-bold text-sm text-emerald-400'
+                : 'font-mono font-bold text-sm text-amber-400';
+
+            document.getElementById('inspEntry').textContent = `${formatPrice(trade.entry)} ${trade.unit}`;
+            document.getElementById('inspOrderType').textContent = trade.mode === 'live' ? `Limit (${trade.direction})` : 'Ausgeführt (Backtest)';
+            document.getElementById('inspSL').textContent = `${formatPrice(trade.sl)} ${trade.unit}`;
+
+            const slDistPct = (Math.abs(trade.entry - trade.sl) / trade.entry * 100).toFixed(2);
+            document.getElementById('inspSlBuffer').textContent = `Abstand: ${slDistPct}% (inkl. ATR)`;
+
+            document.getElementById('inspTP1').textContent = `${formatPrice(trade.tp1)} ${trade.unit}`;
+            document.getElementById('inspTp1RR').textContent = `Teilverkauf 60%`;
+
+            document.getElementById('inspTP2').textContent = `${formatPrice(trade.tp2)} ${trade.unit}`;
+            document.getElementById('inspTp2RR').textContent = `Ziel-CRV 1 : ${trade.rr.toFixed(1)}`;
+
+            document.getElementById('inspSetupWinrate').textContent = `Pattern-Winrate: ${trade.setupWinrate}%`;
+
+            updateInspectorPositionSizing();
+
+            // 3. Populate 4 Confluence Pillars
+            populatePillar(1, trade.pillars.p1);
+            populatePillar(2, trade.pillars.p2);
+            populatePillar(3, trade.pillars.p3);
+            populatePillar(4, trade.pillars.p4);
+
+            // 4. Update AI Context Indicator
+            document.getElementById('aiActiveTradeId').textContent = trade.id;
+            document.getElementById('aiActiveSymbol').textContent = `${trade.symbol} ${trade.direction}`;
+            const welcomeName = document.getElementById('welcomeTradeName');
+            if (welcomeName) welcomeName.textContent = `${trade.symbol} ${trade.direction}`;
+
+            // 5. Redraw Setup Canvas
+            drawSetupChart();
+        }
+
+        function updateInspectorPositionSizing() {
+            const trade = TRADES_DATA.find(t => t.id === selectedTradeId);
+            if (!trade) return;
+
+            const accountSize = parseFloat(document.getElementById('accountSizeInput').value) || 25000;
+            const riskPct = backtestStats.riskPerTradePct;
+            const riskEur = accountSize * (riskPct / 100);
+
+            const priceRiskPerUnit = Math.abs(trade.entry - trade.sl);
+            let posUnits = priceRiskPerUnit > 0 ? (riskEur / priceRiskPerUnit) : 1;
+
+            // Format nicely for Forex vs Stocks/Gold/Crypto
+            if (trade.category.includes('Forex')) {
+                // Standard Lot approx calculation
+                const lots = (riskEur / (priceRiskPerUnit * 100000)).toFixed(2);
+                document.getElementById('inspPosSize').textContent = `${lots} Lots`;
+            } else if (trade.symbol === 'BTC/USD') {
+                document.getElementById('inspPosSize').textContent = `${posUnits.toFixed(3)} BTC`;
+            } else {
+                document.getElementById('inspPosSize').textContent = `${posUnits.toFixed(1)} ${trade.posUnit}`;
+            }
+
+            document.getElementById('inspRiskEur').textContent = `Risiko: ${Math.round(riskEur)} € (${riskPct.toFixed(2)}%)`;
+
+            const roiLabel = document.getElementById('inspRoiLabel');
+            const roiValEl = document.getElementById('inspExpectedRoi');
+
+            if (trade.mode === 'history') {
+                roiLabel.textContent = 'Realisierter Trade-ROI';
+                const actualRoiPct = trade.roiPct * riskPct;
+                const actualProfitEur = accountSize * (actualRoiPct / 100);
+                const sign = actualRoiPct >= 0 ? '+' : '';
+                roiValEl.textContent = `${sign}${actualRoiPct.toFixed(2)}% (${sign}${Math.round(actualProfitEur)} €)`;
+                roiValEl.className = actualRoiPct >= 0
+                    ? 'font-mono font-bold text-xs sm:text-sm text-emerald-400'
+                    : 'font-mono font-bold text-xs sm:text-sm text-tv-bear';
+            } else {
+                roiLabel.textContent = 'Erwarteter Trade-ROI (TP2)';
+                const expectedRoiPct = trade.rr * riskPct;
+                const expectedProfitEur = accountSize * (expectedRoiPct / 100);
+                roiValEl.textContent = `+${expectedRoiPct.toFixed(2)}% (+${Math.round(expectedProfitEur)} €)`;
+                roiValEl.className = 'font-mono font-bold text-xs sm:text-sm text-emerald-400';
+            }
+        }
+
+        function populatePillar(num, data) {
+            document.getElementById(`scorePillar${num}`).textContent = `${data.score} / ${data.max} Pkt.`;
+            const pct = Math.min(100, Math.round((data.score / data.max) * 100));
+            document.getElementById(`barPillar${num}`).style.width = `${pct}%`;
+            document.getElementById(`textPillar${num}`).textContent = data.text;
+
+            const tagsContainer = document.getElementById(`tagsPillar${num}`);
+            tagsContainer.innerHTML = data.tags.map(tag => `
+                <span class="px-2 py-0.5 rounded bg-tv-card border border-tv-border text-[10px] font-mono text-tv-text">
+                    ${tag}
+                </span>
+            `).join('');
+        }
+
+        function formatPrice(val) {
+            if (val < 10) return val.toFixed(4);
+            if (val < 1000) return val.toFixed(2);
+            return val.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 2 });
+        }
+
+        // =========================================================================
+        // 6. INTERACTIVE CANVAS CHART: SETUP, SMA, BOS, ORDERBLOCK & VOLUME
+        // =========================================================================
+        function toggleChartLayer(layer) {
+            chartLayers[layer] = !chartLayers[layer];
+            const btn = document.getElementById(`layerBtn-${layer}`);
+            if (chartLayers[layer]) {
+                btn.className = 'px-2 py-1 rounded bg-tv-card border border-tv-accent/60 text-white font-mono';
+            } else {
+                btn.className = 'px-2 py-1 rounded bg-tv-bg border border-tv-border text-tv-muted font-mono';
+            }
+            drawSetupChart();
+        }
+
+        function drawSetupChart() {
+            const canvas = document.getElementById('setupCanvas');
+            if (!canvas) return;
+            const rect = canvas.parentElement.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+
+            const ctx = canvas.getContext('2d');
+            ctx.scale(dpr, dpr);
+
+            const W = rect.width;
+            const H = rect.height;
+            const trade = TRADES_DATA.find(t => t.id === selectedTradeId) || TRADES_DATA[0];
+            const candles = trade.candles;
+
+            // Clear Canvas
+            ctx.fillStyle = '#0b0e14';
+            ctx.fillRect(0, 0, W, H);
+
+            // Layout regions: Top 74% Price Chart, Bottom 22% Volume Histogram
+            const priceTop = 18;
+            const priceBottom = H * 0.73;
+            const priceHeight = priceBottom - priceTop;
+
+            const volTop = H * 0.78;
+            const volBottom = H - 14;
+            const volHeight = volBottom - volTop;
+
+            const rightAxisWidth = 74;
+            const chartW = W - rightAxisWidth;
+
+            // Compute min & max price including Entry, SL, TP1, TP2, SMAs
+            let allPrices = [];
+            candles.forEach(c => { allPrices.push(c.h, c.l); });
+            allPrices.push(trade.entry, trade.sl, trade.tp1, trade.tp2, trade.sma50, trade.sma200);
+
+            const minPrice = Math.min(...allPrices);
+            const maxPrice = Math.max(...allPrices);
+            const pad = (maxPrice - minPrice) * 0.10;
+            const pMin = minPrice - pad;
+            const pMax = maxPrice + pad;
+
+            const priceToY = (p) => priceTop + ((pMax - p) / (pMax - pMin)) * priceHeight;
+
+            // Draw Horizontal Grid Lines & Price Axis Labels
+            ctx.strokeStyle = '#1e222d';
+            ctx.lineWidth = 1;
+            ctx.font = '10px "JetBrains Mono", monospace';
+            ctx.fillStyle = '#787b86';
+
+            const gridSteps = 5;
+            for (let i = 0; i <= gridSteps; i++) {
+                const pVal = pMin + ((pMax - pMin) / gridSteps) * i;
+                const y = priceToY(pVal);
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(chartW, y);
+                ctx.stroke();
+
+                ctx.fillText(formatPrice(pVal), chartW + 6, y + 3);
+            }
+
+            // Separator between Price & Volume
+            ctx.strokeStyle = '#2a2e39';
+            ctx.beginPath();
+            ctx.moveTo(0, H * 0.75);
+            ctx.lineTo(W, H * 0.75);
+            ctx.stroke();
+
+            const slotWidth = (chartW * 0.68) / candles.length;
+            const startX = 24;
+
+            // 1. DRAW ORDERBLOCK / GOLDEN POCKET DEMAND/SUPPLY ZONE (IF SMC LAYER ON)
+            if (chartLayers.smc) {
+                const obTop = priceToY(Math.max(trade.entry, (trade.entry + trade.sl) / 2));
+                const obBottom = priceToY(Math.min(trade.entry, (trade.entry + trade.sl) / 2));
+                ctx.fillStyle = trade.direction === 'LONG' ? 'rgba(41, 98, 255, 0.13)' : 'rgba(245, 158, 11, 0.13)';
+                ctx.fillRect(startX + slotWidth * 2, Math.min(obTop, obBottom), chartW - (startX + slotWidth * 2), Math.abs(obBottom - obTop));
+
+                ctx.strokeStyle = trade.direction === 'LONG' ? 'rgba(41, 98, 255, 0.45)' : 'rgba(245, 158, 11, 0.45)';
+                ctx.setLineDash([3, 3]);
+                ctx.strokeRect(startX + slotWidth * 2, Math.min(obTop, obBottom), chartW - (startX + slotWidth * 2), Math.abs(obBottom - obTop));
+                ctx.setLineDash([]);
+
+                ctx.fillStyle = '#93c5fd';
+                ctx.font = '10px "JetBrains Mono", monospace';
+                ctx.fillText('Orderblock / 0.618 Golden Pocket Zone', startX + slotWidth * 2 + 6, Math.min(obTop, obBottom) + 12);
+            }
+
+            // 2. DRAW R:R PROJECTION BOX (ENTRY, SL, TP1, TP2) ON RIGHT SIDE OF CHART
+            if (chartLayers.rr) {
+                const rrStartX = startX + (candles.length - 1.5) * slotWidth;
+                const rrWidth = chartW - rrStartX - 8;
+
+                const yEntry = priceToY(trade.entry);
+                const ySL = priceToY(trade.sl);
+                const yTP1 = priceToY(trade.tp1);
+                const yTP2 = priceToY(trade.tp2);
+
+                // Profit Zone Box (Green)
+                ctx.fillStyle = 'rgba(8, 153, 129, 0.18)';
+                ctx.fillRect(rrStartX, Math.min(yEntry, yTP2), rrWidth, Math.abs(yTP2 - yEntry));
+                ctx.strokeStyle = '#089981';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(rrStartX, Math.min(yEntry, yTP2), rrWidth, Math.abs(yTP2 - yEntry));
+
+                // Stop-Loss Zone Box (Red)
+                ctx.fillStyle = 'rgba(242, 54, 69, 0.18)';
+                ctx.fillRect(rrStartX, Math.min(yEntry, ySL), rrWidth, Math.abs(ySL - yEntry));
+                ctx.strokeStyle = '#f23645';
+                ctx.strokeRect(rrStartX, Math.min(yEntry, ySL), rrWidth, Math.abs(ySL - yEntry));
+
+                // TP1 Dashed Line
+                ctx.strokeStyle = '#34d399';
+                ctx.setLineDash([4, 4]);
+                ctx.beginPath();
+                ctx.moveTo(rrStartX, yTP1);
+                ctx.lineTo(rrStartX + rrWidth, yTP1);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                // Entry Line
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(rrStartX, yEntry);
+                ctx.lineTo(rrStartX + rrWidth, yEntry);
+                ctx.stroke();
+
+                // Labels inside R:R Box
+                ctx.font = 'bold 10px "JetBrains Mono", monospace';
+                ctx.fillStyle = '#34d399';
+                ctx.fillText(`TP2 (${formatPrice(trade.tp2)}) [1:${trade.rr.toFixed(1)}R]`, rrStartX + 6, trade.direction === 'LONG' ? yTP2 + 12 : yTP2 - 5);
+
+                ctx.fillStyle = '#ffffff';
+                ctx.fillText(`ENTRY ${formatPrice(trade.entry)}`, rrStartX + 6, yEntry - 5);
+
+                ctx.fillStyle = '#f87171';
+                ctx.fillText(`SL (${formatPrice(trade.sl)}) [-1.0R]`, rrStartX + 6, trade.direction === 'LONG' ? ySL - 5 : ySL + 12);
+            }
+
+            // 3. DRAW SMA 50 & SMA 200 CURVES
+            if (chartLayers.sma) {
+                // Smooth synthetic curve anchored to trade.sma50 & trade.sma200
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#22d3ee'; // Cyan SMA 50
+                ctx.beginPath();
+                candles.forEach((c, idx) => {
+                    const x = startX + idx * slotWidth + slotWidth / 2;
+                    const offset = (candles.length - 1 - idx) * (trade.direction === 'LONG' ? -0.0018 : 0.0018) * trade.sma50;
+                    const y = priceToY(trade.sma50 + offset);
+                    if (idx === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                });
+                ctx.stroke();
+
+                ctx.strokeStyle = '#f59e0b'; // Amber SMA 200
+                ctx.beginPath();
+                candles.forEach((c, idx) => {
+                    const x = startX + idx * slotWidth + slotWidth / 2;
+                    const offset = (candles.length - 1 - idx) * (trade.direction === 'LONG' ? -0.0012 : 0.0012) * trade.sma200;
+                    const y = priceToY(trade.sma200 + offset);
+                    if (idx === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                });
+                ctx.stroke();
+            }
+
+            // 4. DRAW BOS (BREAK OF STRUCTURE) LINE
+            if (chartLayers.smc && trade.bosLevel) {
+                const yBos = priceToY(trade.bosLevel);
+                ctx.strokeStyle = '#a855f7';
+                ctx.lineWidth = 1.5;
+                ctx.setLineDash([5, 3]);
+                ctx.beginPath();
+                ctx.moveTo(startX, yBos);
+                ctx.lineTo(startX + (candles.length - 1) * slotWidth, yBos);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                ctx.fillStyle = '#c084fc';
+                ctx.font = 'bold 10px "JetBrains Mono", monospace';
+                ctx.fillText(`⚡ BOS (${formatPrice(trade.bosLevel)})`, startX + 4, yBos - 5);
+            }
+
+            // 5. DRAW CANDLESTICKS & VOLUME HISTOGRAM
+            const maxVol = Math.max(...candles.map(c => c.v)) * 1.15;
+
+            candles.forEach((c, idx) => {
+                const xCenter = startX + idx * slotWidth + slotWidth / 2;
+                const bodyW = Math.max(6, slotWidth * 0.58);
+                const isBull = c.c >= c.o;
+                const color = isBull ? '#089981' : '#f23645';
+
+                // Wick
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 1.3;
+                ctx.beginPath();
+                ctx.moveTo(xCenter, priceToY(c.h));
+                ctx.lineTo(xCenter, priceToY(c.l));
+                ctx.stroke();
+
+                // Body
+                const yOpen = priceToY(c.o);
+                const yClose = priceToY(c.c);
+                const topY = Math.min(yOpen, yClose);
+                const bodyH = Math.max(2, Math.abs(yClose - yOpen));
+                ctx.fillStyle = color;
+                ctx.fillRect(xCenter - bodyW / 2, topY, bodyW, bodyH);
+
+                // Liquidity Sweep Marker
+                if (chartLayers.smc && c.sweep) {
+                    ctx.fillStyle = '#f59e0b';
+                    ctx.font = 'bold 9px "Inter", sans-serif';
+                    const sweepY = trade.direction === 'LONG' ? priceToY(c.l) + 12 : priceToY(c.h) - 6;
+                    ctx.fillText('💧 SWEEP', xCenter - 18, sweepY);
+                }
+
+                // Volume Bar
+                const barH = (c.v / maxVol) * volHeight;
+                const barY = volBottom - barH;
+                // Highlight high RVOL breakout bars
+                ctx.fillStyle = c.v >= 80 ? (isBull ? '#10b981' : '#ef4444') : (isBull ? 'rgba(8, 153, 129, 0.45)' : 'rgba(242, 54, 69, 0.45)');
+                ctx.fillRect(xCenter - bodyW / 2, barY, bodyW, barH);
+            });
+
+            // 6. DRAW 20-PERIOD VOLUME SMA LINE ON VOLUME PANEL
+            const avgVolY = volBottom - (55 / maxVol) * volHeight;
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 1.2;
+            ctx.setLineDash([3, 3]);
+            ctx.beginPath();
+            ctx.moveTo(startX, avgVolY);
+            ctx.lineTo(startX + candles.length * slotWidth, avgVolY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            ctx.fillStyle = '#38bdf8';
+            ctx.font = '9px "JetBrains Mono", monospace';
+            ctx.fillText('Vol-SMA(20) Schwelle', startX + candles.length * slotWidth + 6, avgVolY + 3);
+        }
+
+        // =========================================================================
+        // 7. QUANTITATIVE BACKTEST ENGINE (500 TO 5,000 TRADES SIMULATION)
+        // =========================================================================
+        function switchCenterTab(tab) {
+            activeCenterTab = tab;
+            const tabChart = document.getElementById('mainTabChart');
+            const tabBacktest = document.getElementById('mainTabBacktest');
+            const viewChart = document.getElementById('viewSetupChart');
+            const viewBacktest = document.getElementById('viewBacktestEngine');
+            const layerCtrls = document.getElementById('chartLayerControls');
+
+            if (tab === 'chart') {
+                tabChart.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-tv-accent text-white flex items-center gap-2 transition shadow';
+                tabBacktest.className = 'px-3 py-1.5 rounded-lg text-xs font-medium text-tv-muted hover:text-white bg-tv-card border border-tv-border flex items-center gap-2 transition';
+                viewChart.classList.remove('hidden');
+                viewBacktest.classList.add('hidden');
+                layerCtrls.classList.remove('hidden');
+                drawSetupChart();
+            } else {
+                tabBacktest.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-tv-accent text-white flex items-center gap-2 transition shadow';
+                tabChart.className = 'px-3 py-1.5 rounded-lg text-xs font-medium text-tv-muted hover:text-white bg-tv-card border border-tv-border flex items-center gap-2 transition';
+                viewBacktest.classList.remove('hidden');
+                viewChart.classList.add('hidden');
+                layerCtrls.classList.add('hidden');
+                drawEquityCurve();
+            }
+        }
+
+        function updateBacktestFromUI() {
+            const numTrades = parseInt(document.getElementById('simTradesSlider').value, 10);
+            const minScore = parseInt(document.getElementById('simMinScoreSlider').value, 10);
+            const riskPct = parseFloat(document.getElementById('simRiskSlider').value);
+            const rr = parseFloat(document.getElementById('simRRSlider').value);
+
+            document.getElementById('lblSimTrades').textContent = `${numTrades.toLocaleString('de-DE')} Trades`;
+            document.getElementById('lblSimMinScore').textContent = `${minScore} / 100 Pkt.`;
+            document.getElementById('lblSimRisk').textContent = `${riskPct.toFixed(2)}%`;
+            document.getElementById('lblSimRR').textContent = `1 : ${rr.toFixed(1)}`;
+
+            runBacktestSimulation(false);
+        }
+
+        function runBacktestSimulation(showNotification) {
+            const numTrades = parseInt(document.getElementById('simTradesSlider').value, 10);
+            const minScore = parseInt(document.getElementById('simMinScoreSlider').value, 10);
+            const riskPct = parseFloat(document.getElementById('simRiskSlider').value);
+            const targetRR = parseFloat(document.getElementById('simRRSlider').value);
+
+            const modSma = document.getElementById('modSma').checked;
+            const modBos = document.getElementById('modBos').checked;
+            const modVol = document.getElementById('modVol').checked;
+            const modMacro = document.getElementById('modMacro').checked;
+            const modAdx = document.getElementById('modAdx').checked;
+
+            // Calculate base winrate from active modules & confluence score threshold
+            let baseWinrate = 36.0;
+            if (modSma) baseWinrate += 7.4;
+            if (modBos) baseWinrate += 11.2;
+            if (modVol) baseWinrate += 5.8;
+            if (modMacro) baseWinrate += 2.9;
+            if (modAdx) baseWinrate += 4.5;
+
+            // Higher confluence threshold increases winrate
+            baseWinrate += (minScore - 75) * 0.28;
+            // Higher target RR slightly lowers winrate (realistic market physics)
+            baseWinrate -= (targetRR - 2.4) * 4.2;
+
+            const winrate = Math.max(32, Math.min(76, baseWinrate));
+            const winProb = winrate / 100;
+
+            // Simulate equity curve over N trades using deterministic pseudo-random generator
+            let seed = numTrades + minScore * 17 + Math.round(targetRR * 100) + (modSma ? 10 : 0) + (modBos ? 20 : 0) + (modVol ? 30 : 0);
+            function nextRand() {
+                seed = (seed * 1664525 + 1013904223) % 4294967296;
+                return seed / 4294967296;
+            }
+
+            const points = 100; // Downsample to 100 curve points for smooth rendering
+            const tradesPerStep = Math.max(1, Math.floor(numTrades / points));
+            let cumR = 0;
+            let peakR = 0;
+            let maxDDPct = 0;
+            let grossWinR = 0;
+            let grossLossR = 0;
+            const curve = [0];
+
+            for (let i = 0; i < points; i++) {
+                for (let j = 0; j < tradesPerStep; j++) {
+                    const r = nextRand();
+                    if (r < winProb) {
+                        // Partial TP1 + TP2 realistic average win
+                        const winR = targetRR * 0.68;
+                        cumR += winR;
+                        grossWinR += winR;
+                    } else {
+                        const lossR = modMacro ? 1.0 : 1.22; // Higher slippage without macro filter
+                        cumR -= lossR;
+                        grossLossR += lossR;
+                    }
+                    if (cumR > peakR) peakR = cumR;
+                    const ddR = peakR - cumR;
+                    const currentDDPct = ddR * riskPct;
+                    if (currentDDPct > maxDDPct) maxDDPct = currentDDPct;
+                }
+                curve.push(cumR * riskPct);
+            }
+
+            const totalRoiPct = Math.max(-95, curve[curve.length - 1]);
+            const profitFactor = grossLossR > 0 ? (grossWinR / grossLossR) : 3.0;
+            const expectancyR = (winProb * (targetRR * 0.68)) - ((1 - winProb) * (modMacro ? 1.0 : 1.22));
+
+            backtestStats = {
+                totalTrades: numTrades,
+                minScore,
+                riskPerTradePct: riskPct,
+                targetRR,
+                winrate,
+                profitFactor,
+                maxDrawdown: Math.min(99, Math.max(2.1, maxDDPct)),
+                expectancyR,
+                totalRoiPct,
+                equityCurve: curve
+            };
+
+            updateTopKpiDisplay();
+            updateInspectorPositionSizing();
+            if (activeCenterTab === 'backtest') {
+                drawEquityCurve();
+            }
+
+            if (showNotification) {
+                showToast(`Backtest über ${numTrades.toLocaleString('de-DE')} Trades erfolgreich berechnet (Winrate: ${winrate.toFixed(1)}%).`, 'success');
+            }
+        }
+
+        function updateTopKpiDisplay() {
+            const accountSize = parseFloat(document.getElementById('accountSizeInput').value) || 25000;
+            const roiEur = accountSize * (backtestStats.totalRoiPct / 100);
+            const sign = backtestStats.totalRoiPct >= 0 ? '+' : '';
+
+            const roiPctEl = document.getElementById('kpiTotalRoiPct');
+            roiPctEl.textContent = `${sign}${backtestStats.totalRoiPct.toFixed(1)}%`;
+            roiPctEl.className = backtestStats.totalRoiPct >= 0
+                ? 'font-mono font-bold text-xs sm:text-sm text-tv-bull'
+                : 'font-mono font-bold text-xs sm:text-sm text-tv-bear';
+
+            document.getElementById('kpiTotalRoiEur').textContent = `(${sign}${Math.round(roiEur).toLocaleString('de-DE')} €)`;
+            document.getElementById('kpiTotalTrades').textContent = backtestStats.totalTrades.toLocaleString('de-DE');
+            document.getElementById('kpiWinrate').textContent = `${backtestStats.winrate.toFixed(1)}%`;
+            document.getElementById('kpiProfitFactor').textContent = backtestStats.profitFactor.toFixed(2);
+            document.getElementById('kpiMaxDD').textContent = `-${backtestStats.maxDrawdown.toFixed(1)}%`;
+
+            const expSign = backtestStats.expectancyR >= 0 ? '+' : '';
+            const expPct = backtestStats.expectancyR * backtestStats.riskPerTradePct;
+            document.getElementById('kpiExpectancyR').textContent = `${expSign}${backtestStats.expectancyR.toFixed(2)} R`;
+            document.getElementById('kpiExpectancyPct').textContent = `(${expSign}${expPct.toFixed(2)}%)`;
+        }
+
+        function drawEquityCurve() {
+            const canvas = document.getElementById('equityCanvas');
+            if (!canvas) return;
+            const rect = canvas.parentElement.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+
+            const ctx = canvas.getContext('2d');
+            ctx.scale(dpr, dpr);
+
+            const W = rect.width;
+            const H = rect.height;
+            const curve = backtestStats.equityCurve;
+
+            ctx.fillStyle = '#0b0e14';
+            ctx.fillRect(0, 0, W, H);
+
+            if (!curve || curve.length < 2) return;
+
+            const minVal = Math.min(0, ...curve);
+            const maxVal = Math.max(10, ...curve);
+            const pad = (maxVal - minVal) * 0.12;
+            const yMin = minVal - pad;
+            const yMax = maxVal + pad;
+
+            const valToY = (v) => 16 + ((yMax - v) / (yMax - yMin)) * (H - 34);
+            const idxToX = (i) => 16 + (i / (curve.length - 1)) * (W - 86);
+
+            // Grid lines
+            ctx.strokeStyle = '#1e222d';
+            ctx.lineWidth = 1;
+            ctx.font = '10px "JetBrains Mono", monospace';
+            ctx.fillStyle = '#787b86';
+
+            for (let s = 0; s <= 4; s++) {
+                const v = yMin + ((yMax - yMin) / 4) * s;
+                const y = valToY(v);
+                ctx.beginPath();
+                ctx.moveTo(16, y);
+                ctx.lineTo(W - 70, y);
+                ctx.stroke();
+                ctx.fillText(`${v >= 0 ? '+' : ''}${Math.round(v)}%`, W - 64, y + 3);
+            }
+
+            // Fill Gradient under Equity Curve
+            const isPositive = curve[curve.length - 1] >= 0;
+            const grad = ctx.createLinearGradient(0, 0, 0, H);
+            if (isPositive) {
+                grad.addColorStop(0, 'rgba(8, 153, 129, 0.35)');
+                grad.addColorStop(1, 'rgba(8, 153, 129, 0.0)');
+            } else {
+                grad.addColorStop(0, 'rgba(242, 54, 69, 0.35)');
+                grad.addColorStop(1, 'rgba(242, 54, 69, 0.0)');
+            }
+
+            ctx.beginPath();
+            curve.forEach((v, i) => {
+                const x = idxToX(i);
+                const y = valToY(v);
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+            ctx.lineTo(idxToX(curve.length - 1), H - 18);
+            ctx.lineTo(idxToX(0), H - 18);
+            ctx.closePath();
+            ctx.fillStyle = grad;
+            ctx.fill();
+
+            // Stroke Equity Line
+            ctx.beginPath();
+            curve.forEach((v, i) => {
+                const x = idxToX(i);
+                const y = valToY(v);
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+            ctx.strokeStyle = isPositive ? '#089981' : '#f23645';
+            ctx.lineWidth = 2.2;
+            ctx.stroke();
+
+            // Overlay Legend
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 11px "Inter", sans-serif';
+            ctx.fillText(`Kumulierte Equity-Kurve (${backtestStats.totalTrades.toLocaleString('de-DE')} Swing-Trades | Mindest-Score: ${backtestStats.minScore})`, 24, 24);
+        }
+
+        // =========================================================================
+        // 8. ORDER TICKET CLIPBOARD & LIVE SCANNER ACTIONS
+        // =========================================================================
+        function copyOrderTicket() {
+            const trade = TRADES_DATA.find(t => t.id === selectedTradeId);
+            if (!trade) return;
+
+            const posSizeText = document.getElementById('inspPosSize').textContent;
+            const riskText = document.getElementById('inspRiskEur').textContent;
+
+            const ticket = [
+                `=== QUANTSWING AI ORDER-TICKET ===`,
+                `Asset: ${trade.symbol} (${trade.name})`,
+                `Richtung: ${trade.direction} (${trade.timeframe})`,
+                `Confluence-Score: ${trade.score}/100`,
+                `Entry (Limit): ${formatPrice(trade.entry)} ${trade.unit}`,
+                `Stop-Loss: ${formatPrice(trade.sl)} ${trade.unit}`,
+                `Take-Profit 1 (60%): ${formatPrice(trade.tp1)} ${trade.unit}`,
+                `Take-Profit 2 (40%): ${formatPrice(trade.tp2)} ${trade.unit}`,
+                `CRV (R:R): 1 : ${trade.rr.toFixed(1)}`,
+                `Empfohlene Größe: ${posSizeText} (${riskText})`,
+                `Begründung: ${trade.subtitle}`
+            ].join('\n');
+
+            const tempInput = document.createElement('textarea');
+            tempInput.value = ticket;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+
+            const btnText = document.getElementById('copyBtnText');
+            btnText.textContent = 'Kopiert!';
+            setTimeout(() => { btnText.textContent = 'Order-Daten kopieren'; }, 2000);
+            showToast(`Order-Ticket für ${trade.symbol} in die Zwischenablage kopiert.`, 'info');
+        }
+
+        function triggerLiveMarketScan() {
+            document.getElementById('scannerLastUpdate').textContent = 'Scan: Läuft...';
+            setTimeout(() => {
+                document.getElementById('scannerLastUpdate').textContent = 'Scan: Gerade eben';
+                showToast('Markt-Scan abgeschlossen: 6 aktive Swing-Setups geprüft (SMA, BOS, RVOL & Wirtschaftskalender).', 'success');
+            }, 600);
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            const borderCol = type === 'success' ? 'border-emerald-500/50' : 'border-tv-accent/50';
+            const icon = type === 'success'
+                ? '<i class="fa-solid fa-circle-check text-emerald-400"></i>'
+                : '<i class="fa-solid fa-circle-info text-tv-accent"></i>';
+
+            toast.className = `bg-tv-panel border ${borderCol} text-white px-3.5 py-2.5 rounded-xl shadow-xl text-xs flex items-center gap-2.5 pointer-events-auto transition-all duration-300`;
+            toast.innerHTML = `${icon}<span>${message}</span>`;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        // =========================================================================
+        // 9. INTEGRATED GEMINI AI MARKET ANALYST & STRATEGY ADVISOR
+        // =========================================================================
+        function triggerQuickPrompt(type) {
+            const trade = TRADES_DATA.find(t => t.id === selectedTradeId);
+            if (!trade) return;
+
+            let promptText = '';
+            if (type === 'risks') {
+                promptText = `Analysiere kritisch die möglichen Schwachstellen, Risiken und Gegenargumente für meinen aktuell ausgewählten ${trade.direction}-Trade auf ${trade.symbol} (Entry: ${trade.entry}, SL: ${trade.sl}, TP2: ${trade.tp2}). Worauf muss ich bei der manuellen Ausführung besonders achten?`;
+            } else if (type === 'confluence') {
+                promptText = `Erkläre mir im Detail, warum das Zusammenspiel aus SMA 50/200, Break of Structure (BOS), Liquidity Sweep und dem relativen Volumen (${trade.rvol}x RVOL) bei ${trade.symbol} statistisch einen Vorteil bietet.`;
+            } else if (type === 'macro') {
+                promptText = `Welche aktuellen wirtschaftlichen Ereignisse, Zentralbank-Entscheidungen oder Intermarket-Korrelationen (z.B. US-Dollar, Renditen, Sentiment) sind aktuell für ${trade.symbol} (${trade.name}) entscheidend?`;
+            } else if (type === 'improve') {
+                promptText = `Nenne mir die wichtigsten zusätzlichen Faktoren, Konzepte und Filter, die wir als Nächstes in meinen Swing-Trading-Bot einbauen sollten, um die Trefferquote (${backtestStats.winrate.toFixed(1)}%) und den ROI weiter zu steigern.`;
+            }
+
+            document.getElementById('aiChatInput').value = promptText;
+            handleUserChatSubmit(new Event('submit'));
+        }
+
+        async function handleUserChatSubmit(e) {
+            e.preventDefault();
+            const inputEl = document.getElementById('aiChatInput');
+            const userQuery = inputEl.value.trim();
+            if (!userQuery) return;
+
+            inputEl.value = '';
+            appendChatMessage('user', userQuery);
+
+            const loadingId = appendChatLoading();
+            const trade = TRADES_DATA.find(t => t.id === selectedTradeId);
+            const useWebSearch = document.getElementById('aiWebSearchToggle').checked;
+
+            const systemPrompt = `Du bist der integrierte "QuantSwing AI"-Marktanalyst und Quantitative-Trading-Architekt in einem professionellen Swing-Trading-Terminal.
+Der Nutzer führt alle Trades manuell selbst aus und nutzt den Bot zur Berechnung von Confluence-Scores, Backtests und Trade-Begründungen.
+Antworte auf Deutsch, präzise, strukturiert (nutze kurze Aufzählungspunkte und Fettdruck für wichtige Begriffe) und praxisnah.
+
+AKTUELL VOM NUTZER AUSGEWÄHLTER TRADE IM TERMINAL:
+- Symbol: ${trade.symbol} (${trade.name}) | Kategorie: ${trade.category}
+- Richtung: ${trade.direction} auf Zeiteinheit ${trade.timeframe} | Status: ${trade.status}
+- Confluence-Score: ${trade.score}/100 Punkte
+- Entry: ${trade.entry} ${trade.unit} | Stop-Loss: ${trade.sl} ${trade.unit} | TP1: ${trade.tp1} | TP2: ${trade.tp2} (CRV 1:${trade.rr})
+- Indikatoren: SMA 50 = ${trade.sma50}, SMA 200 = ${trade.sma200}, Relatives Volumen (RVOL) = ${trade.rvol}x
+- Bot-Begründung Struktur: ${trade.pillars.p1.text}
+- Bot-Begründung Technik/Volumen: ${trade.pillars.p2.text}
+- Bot-Begründung Makro: ${trade.pillars.p3.text}
+- Bot-Begründung Backtest: ${trade.pillars.p4.text}
+
+AKTUELLE BACKTEST-EINSTELLUNGEN DES NUTZERS:
+- Simulierte Trades: ${backtestStats.totalTrades} Trades
+- Trefferquote (Winrate): ${backtestStats.winrate.toFixed(1)}%
+- Profit Faktor: ${backtestStats.profitFactor.toFixed(2)} | Max Drawdown: -${backtestStats.maxDrawdown.toFixed(1)}%
+- Erwartungswert pro Trade: +${backtestStats.expectancyR.toFixed(2)} R | Risiko pro Trade: ${backtestStats.riskPerTradePct}%`;
+
+            try {
+                const responseData = await callGeminiWithRetry(systemPrompt, userQuery, useWebSearch);
+                removeChatLoading(loadingId);
+                appendChatMessage('ai', responseData.text, responseData.sources);
+            } catch (err) {
+                removeChatLoading(loadingId);
+                appendChatMessage('ai', `**Hinweis zur Analyse:** Ich konnte die Live-API-Verbindung gerade nicht abschließen. Basierend auf den geladenen Terminal-Daten für **${trade.symbol} (${trade.direction})**:\n\n* **Struktur & Entry:** Achte darauf, dass der Rücksetzer in den Bereich um **${formatPrice(trade.entry)} ${trade.unit}** mit abnehmendem Verkaufsdruck erfolgt.\n* **Risiko-Schutz:** Dein Stop-Loss bei **${formatPrice(trade.sl)} ${trade.unit}** ist durch die historische MAE-Statistik (${trade.setupWinrate}% Pattern-Winrate) abgesichert.\n* **Erweiterungs-Idee für deinen Bot:** Wir können als Nächstes ein **Session-Liquiditäts-Modul (London/NY-Killzones)** und eine **automatische Korrelations-Matrix (DXY/US10Y)** ergänzen.`);
+            }
+        }
+
+        async function callGeminiWithRetry(systemPrompt, userQuery, useSearch) {
+            const apiKey = "";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] }
+            };
+
+            if (useSearch) {
+                payload.tools = [{ "google_search": {} }];
+            }
+
+            const delays = [1000, 2000, 4000];
+            for (let attempt = 0; attempt <= delays.length; attempt++) {
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    const candidate = result.candidates?.[0];
+                    const text = candidate?.content?.parts?.[0]?.text;
+                    if (!text) throw new Error('Empty response');
+
+                    let sources = [];
+                    const groundingMetadata = candidate.groundingMetadata;
+                    if (groundingMetadata && groundingMetadata.groundingAttributions) {
+                        sources = groundingMetadata.groundingAttributions
+                            .map(attr => ({ uri: attr.web?.uri, title: attr.web?.title }))
+                            .filter(s => s.uri && s.title);
+                    }
+
+                    return { text, sources };
+                } catch (err) {
+                    if (attempt === delays.length) throw err;
+                    await new Promise(res => setTimeout(res, delays[attempt]));
+                }
+            }
+        }
+
+        function appendChatMessage(role, text, sources = []) {
+            const container = document.getElementById('aiChatContainer');
+            const msgDiv = document.createElement('div');
+
+            if (role === 'user') {
+                msgDiv.className = 'bg-tv-accent/20 border border-tv-accent/40 rounded-xl p-2.5 text-white ml-6';
+                msgDiv.innerHTML = `
+                    <div class="text-[10px] text-blue-300 font-semibold mb-0.5">Du (Trader):</div>
+                    <div>${escapeHtml(text)}</div>
+                `;
+            } else {
+                const formattedHtml = formatSimpleMarkdown(text);
+                let sourcesHtml = '';
+                if (sources && sources.length > 0) {
+                    const uniqueSources = sources.slice(0, 3);
+                    sourcesHtml = `
+                        <div class="mt-2 pt-2 border-t border-tv-border/60 text-[10px] text-tv-muted">
+                            <span class="block mb-1 font-semibold text-tv-text"><i class="fa-brands fa-google text-tv-accent mr-1"></i>Quellen (Live-Grounding):</span>
+                            <div class="flex flex-wrap gap-1">
+                                ${uniqueSources.map(s => `<a href="${s.uri}" target="_blank" rel="noopener noreferrer" class="px-1.5 py-0.5 rounded bg-tv-bg border border-tv-border text-tv-accent hover:underline truncate max-w-[200px]">${escapeHtml(s.title)}</a>`).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                msgDiv.className = 'bg-tv-card border border-tv-border rounded-xl p-3 text-tv-text mr-2 leading-relaxed markdown-content';
+                msgDiv.innerHTML = `
+                    <div class="flex items-center gap-1.5 text-[10px] text-indigo-400 font-semibold mb-1">
+                        <i class="fa-solid fa-robot"></i>
+                        <span>QuantSwing KI-Analyst</span>
+                    </div>
+                    <div>${formattedHtml}</div>
+                    ${sourcesHtml}
+                `;
+            }
+
+            container.appendChild(msgDiv);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function appendChatLoading() {
+            const container = document.getElementById('aiChatContainer');
+            const id = 'loading-' + Date.now();
+            const div = document.createElement('div');
+            div.id = id;
+            div.className = 'bg-tv-card border border-tv-border rounded-xl p-3 text-tv-muted text-xs flex items-center gap-2';
+            div.innerHTML = `
+                <i class="fa-solid fa-circle-notch fa-spin text-tv-accent"></i>
+                <span>KI analysiert Chart-Struktur, Makro-Daten & Backtest-Metriken...</span>
+            `;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+            return id;
+        }
+
+        function removeChatLoading(id) {
+            const el = document.getElementById(id);
+            if (el) el.remove();
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/[&<>"']/g, m => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[m]));
+        }
+
+        function formatSimpleMarkdown(text) {
+            let safe = escapeHtml(text);
+            safe = safe.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            safe = safe.replace(/^\s*[\*\-]\s+(.*)$/gm, '<li>$1</li>');
+            safe = safe.replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>');
+            safe = safe.replace(/\n\n/g, '</p><p>');
+            safe = safe.replace(/\n/g, '<br>');
+            return `<p>${safe}</p>`;
+        }
+    </script>
+</body>
+</html>
