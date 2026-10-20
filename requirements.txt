@@ -1,5 +1,9 @@
-yfinance==0.2.36
+yfinance
 
-pandas==2.2.0
+pandas
 
-numpy==1.26.3
+numpy
+
+requests
+
+lxml 
