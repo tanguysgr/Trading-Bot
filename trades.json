@@ -1,1 +1,31 @@
-[]
+[
+  {
+    "id": "QUANT-SAP.DE",
+    "mode": "live",
+    "ticker": "SAP.DE",
+    "name": "SAP.DE Share",
+    "sector": "DE/EU Equities",
+    "timeframe": "4H + 1D",
+    "direction": "LONG",
+    "score": 78,
+    "grade": "A",
+    "entry": 211.75,
+    "stopLoss": 206.19,
+    "takeProfit": 222.88,
+    "rr": 2.0,
+    "expectedRoiPct": 2.0,
+    "rvol": 0.95,
+    "adx": 26.6,
+    "sma50": 204.29,
+    "sma200": 190.12,
+    "headline": "Beste Bot-Strategie: Smart Money Concept (BOS + Fib + SMA) | Winrate: 60.0%",
+    "pillar1Score": "25 / 30",
+    "pillar1Text": "4H Break of Structure mit Pullback in Fib-Zone.",
+    "pillar2Score": "20 / 25",
+    "pillar2Text": "Daily-Trend und RVOL geprüft.",
+    "pillar3Score": "18 / 25",
+    "pillar3Text": "Marktregime-Filter bestanden.",
+    "pillar4Score": "15 / 20",
+    "pillar4Text": "Historisch verifiziert."
+  }
+]
