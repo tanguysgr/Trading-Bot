@@ -1,0 +1,42 @@
+# Beispiel-Universum für Backtests: weltweit gestreut, liquide Werte.
+# Ein Yahoo-Finance-Kürzel pro Zeile. Alles nach # ist Kommentar.
+# Das vollständige weltweite Universum kommt in Phase 2.
+
+# --- ETFs (Vergleichsmaßstab) ---
+SPY        # S&P 500
+QQQ        # Nasdaq 100
+IWM        # Russell 2000
+GLD        # Gold
+
+# --- USA ---
+AAPL
+MSFT
+NVDA
+AMZN
+JPM
+XOM
+JNJ
+
+# --- Europa ---
+SAP.DE     # SAP, Xetra
+SIE.DE     # Siemens
+ALV.DE     # Allianz
+ASML.AS    # ASML, Amsterdam
+MC.PA      # LVMH, Paris
+NESN.SW    # Nestlé, Zürich
+NOVN.SW    # Novartis
+AZN.L      # AstraZeneca, London
+SHEL.L     # Shell
+
+# --- Asien / Pazifik / Kanada / Indien ---
+7203.T     # Toyota, Tokio
+6758.T     # Sony
+0700.HK    # Tencent, Hongkong
+RELIANCE.NS  # Reliance, Indien
+BHP.AX     # BHP, Australien
+RY.TO      # Royal Bank of Canada
+
+# --- Krypto (strengere Hürden) ---
+BTC-USD
+ETH-USD
+SOL-USD

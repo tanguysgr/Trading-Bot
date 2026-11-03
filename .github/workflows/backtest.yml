@@ -1,0 +1,55 @@
+name: Backtest
+
+# Manuell starten: GitHub → Reiter "Actions" → "Backtest" → "Run workflow".
+# Der Bericht erscheint direkt auf der Ergebnisseite des Laufs (Summary),
+# alle Trades gibt es unten unter "Artifacts" als Download.
+on:
+  workflow_dispatch:
+    inputs:
+      strategie:
+        description: "Welche Strategie?"
+        type: choice
+        default: all
+        options: [all, trend_pullback, breakout_volume]
+      universum:
+        description: "Datei mit Börsenkürzeln"
+        default: config/universes/beispiel.txt
+      start:
+        description: "Kursdaten ab (JJJJ-MM-TT)"
+        default: "2005-01-01"
+      stichtag:
+        description: "Stichtag Training/Test (JJJJ-MM-TT)"
+        default: "2018-01-01"
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Pakete installieren
+        run: pip install -r requirements.txt
+      - name: Backtest ausführen
+        env:
+          STRATEGIE: ${{ inputs.strategie }}
+          UNIVERSUM: ${{ inputs.universum }}
+          START: ${{ inputs.start }}
+          STICHTAG: ${{ inputs.stichtag }}
+        run: >
+          python -m quantswing backtest
+          --strategy "$STRATEGIE" --universe "$UNIVERSUM"
+          --start "$START" --split "$STICHTAG" --out results -v
+      - name: Bericht anzeigen
+        if: always()
+        run: cat results/bericht.md >> "$GITHUB_STEP_SUMMARY" || echo "Kein Bericht erzeugt" >> "$GITHUB_STEP_SUMMARY"
+      - name: Ergebnisse zum Download bereitstellen
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backtest-ergebnisse
+          path: results/
+          retention-days: 30

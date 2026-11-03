@@ -1,0 +1,22 @@
+name: Tests
+
+# Läuft bei jedem Push und Pull Request: prüft, dass die Engine korrekt rechnet.
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Pakete installieren
+        run: pip install -r requirements.txt -r requirements-dev.txt
+      - name: Tests ausführen
+        run: pytest -q
+      - name: Demo-Backtest (Kunstdaten, prüft dass alles zusammenspielt)
+        run: python -m quantswing backtest --demo --out demo-results > /dev/null
