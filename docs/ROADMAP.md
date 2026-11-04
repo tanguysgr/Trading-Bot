@@ -1,6 +1,6 @@
 # Fahrplan
 
-## Phase 1 – Ehrlicher Prüfstand ✅ (dieser Stand)
+## Phase 1 – Ehrlicher Prüfstand ✅
 - [x] Gemini-Altlasten entfernt (gefälschte Backtests, KI-Selbstüberschreibung)
 - [x] Echte Indikatoren (Wilder-ATR/RSI/ADX, Swings ohne Blick in die Zukunft)
 - [x] Backtest-Engine mit konservativen Ausführungsregeln, Gebühren, Slippage
@@ -8,16 +8,27 @@
 - [x] Strengere Hürden für Krypto
 - [x] Zwei Strategie-Vorlagen: Trend-Pullback, Ausbruch mit Volumen
 - [x] Automatische Tests + manueller Backtest auf GitHub
-- [ ] Erster echter Backtest-Lauf auf GitHub und gemeinsame Auswertung
+- [x] Erster echter Backtest-Lauf auf GitHub und gemeinsame Auswertung
 
 ## Phase 2 – Strategien & Scanner
-- [ ] Weltweites Aktien-Universum (Indizes mehrerer Länder, Liquiditätsfilter)
-- [ ] Markt-Regime-Filter (z.B. Leitindex über SMA200, Volatilität)
-- [ ] Portfolio-Simulation: begrenzte Anzahl gleichzeitiger Positionen, Klumpenrisiko
+### 2a – Mehr Daten, realistischere Simulation ✅
+- [x] Weltweites Universum (502 Werte, 24 Märkte) + Prüfwerkzeug für Kürzel
+- [x] Börsenplatz und Währung je Kürzel, historische Wechselkurse
+- [x] Liquiditätsfilter (Tagesumsatz in USD, ohne Blick in die Zukunft)
+- [x] Portfolio-Simulation: begrenzte Positionen, Klumpenrisiko je Land, kein Hebel
+- [x] Vergleich mit Kaufen & Halten (SPY, ACWI, BTC)
+- [x] Ergebnis-Logbuch (`docs/ERGEBNISSE.md`)
+
+### 2b – Strategien verbessern
 - [ ] Walk-Forward-Test (rollierende Training/Test-Fenster) statt eines Stichtags
-- [ ] Weitere Strategien testen und aussortieren
-- [ ] Täglicher Scanner: nur Signale aus Strategien, die die Hürden bestanden haben
-- [ ] Währungen berücksichtigen (Positionsgröße in € bei Aktien in $, ¥, …)
+- [ ] Markt-Regime-Filter (z.B. Leitindex über SMA200, Volatilität)
+- [ ] Ausstiege: Trailing-Stop / Gewinne laufen lassen statt festem 2-R-Ziel
+- [ ] Relative Stärke als eigene Strategie bzw. Hauptkriterium
+- [ ] Weitere Ideen testen und aussortieren
+
+### 2c – Täglicher Scanner
+- [ ] Nur Signale aus Strategien, die die Hürden bestanden haben
+- [ ] Positionsgröße in € (Wechselkurs)
 - [ ] Wirtschaftstermine (Earnings, Zentralbanken) als Warnhinweis am Signal
 
 ## Phase 3 – Oberfläche & Zugriff von überall

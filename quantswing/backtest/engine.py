@@ -90,10 +90,19 @@ def run_backtest(
     strategy: Strategy,
     symbol: str = "?",
     costs: Costs | None = None,
+    tradable: pd.Series | None = None,
 ) -> list[Trade]:
-    """Simuliert alle Trades einer Strategie auf einem Symbol."""
+    """
+    Simuliert alle Trades einer Strategie auf einem Symbol.
+
+    `tradable` (optional): True/False je Tag. Signale an Tagen mit False werden
+    ignoriert – z.B. weil die Aktie damals zu wenig gehandelt wurde.
+    """
     costs = costs or Costs()
     sig = strategy.run(df)
+    if tradable is not None:
+        ok = tradable.reindex(sig.index).fillna(False).astype(bool)
+        sig["signal"] = sig["signal"] & ok
 
     o = sig["Open"].to_numpy(float)
     h = sig["High"].to_numpy(float)
