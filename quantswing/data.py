@@ -18,16 +18,12 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from .markets import CRYPTO, asset_class, fx_symbol, market_of  # noqa: F401
+
 log = logging.getLogger(__name__)
 
 OHLCV = ["Open", "High", "Low", "Close", "Volume"]
 
-CRYPTO_QUOTES = ("-USD", "-EUR", "-USDT", "-BTC")
-
-
-def asset_class(symbol: str) -> str:
-    """Grobe Einordnung anhand des Kürzels: 'crypto' oder 'stock'."""
-    return "crypto" if symbol.upper().endswith(CRYPTO_QUOTES) else "stock"
 
 
 class DataError(Exception):
@@ -73,6 +69,31 @@ def clean_ohlcv(df: pd.DataFrame, symbol: str = "?") -> pd.DataFrame:
     return df
 
 
+def _cache_path(cache_dir: str | Path, symbol: str, interval: str, start: str,
+                end: str | None) -> Path:
+    cache_dir = Path(cache_dir)
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    safe = symbol.replace("/", "_").replace("^", "IDX_").replace("=", "_")
+    stamp = end or f"stand-{date.today().isoformat()}"
+    return cache_dir / f"{safe}_{interval}_{start}_{stamp}.csv"
+
+
+def _normalize(raw: pd.DataFrame) -> pd.DataFrame:
+    if isinstance(raw.columns, pd.MultiIndex):
+        raw = raw.copy()
+        raw.columns = raw.columns.get_level_values(0)
+    raw.index = pd.to_datetime(raw.index).tz_localize(None)
+    return raw
+
+
+def _yf():
+    try:
+        import yfinance as yf
+    except ImportError as e:  # pragma: no cover
+        raise DataError("Paket 'yfinance' fehlt: pip install -r requirements.txt") from e
+    return yf
+
+
 def load_ohlcv(
     symbol: str,
     start: str = "2005-01-01",
@@ -84,22 +105,14 @@ def load_ohlcv(
     Tageskerzen für ein Symbol laden (mit Datei-Cache).
     Ohne `end` gilt der Cache nur für den heutigen Tag, danach wird neu geladen.
     """
-    cache_file = None
-    if cache_dir:
-        cache_dir = Path(cache_dir)
-        cache_dir.mkdir(parents=True, exist_ok=True)
-        safe = symbol.replace("/", "_").replace("^", "IDX_")
-        stamp = end or f"stand-{date.today().isoformat()}"
-        cache_file = cache_dir / f"{safe}_{interval}_{start}_{stamp}.csv"
-        if cache_file.exists():
-            df = pd.read_csv(cache_file, index_col=0, parse_dates=True)
-            return clean_ohlcv(df, symbol)
+    cache_file = _cache_path(cache_dir, symbol, interval, start, end) if cache_dir else None
+    if cache_file is not None and cache_file.exists():
+        df = pd.read_csv(cache_file, index_col=0, parse_dates=True)
+        if df.empty:
+            raise DataError(f"{symbol}: keine Daten (aus Cache)")
+        return clean_ohlcv(df, symbol)
 
-    try:
-        import yfinance as yf
-    except ImportError as e:  # pragma: no cover
-        raise DataError("Paket 'yfinance' fehlt: pip install -r requirements.txt") from e
-
+    yf = _yf()
     raw, last_err = None, None
     for attempt in range(3):  # Yahoo drosselt gelegentlich – kurz warten, erneut versuchen
         try:
@@ -114,14 +127,90 @@ def load_ohlcv(
         time.sleep(2 * (attempt + 1))
     if raw is None or raw.empty:
         raise DataError(f"{symbol}: keine Daten von Yahoo erhalten ({last_err or 'leer'})")
-    if isinstance(raw.columns, pd.MultiIndex):
-        raw.columns = raw.columns.get_level_values(0)
-    raw.index = pd.to_datetime(raw.index).tz_localize(None)
 
-    df = clean_ohlcv(raw, symbol)
+    df = clean_ohlcv(_normalize(raw), symbol)
     if cache_file is not None:
         df.to_csv(cache_file)
     return df
+
+
+def prefetch(
+    symbols: list[str],
+    start: str = "2005-01-01",
+    end: str | None = None,
+    cache_dir: str | Path = ".cache/prices",
+    chunk: int = 40,
+    interval: str = "1d",
+) -> list[str]:
+    """
+    Lädt viele Symbole paketweise in den Cache (deutlich schneller und
+    schonender für Yahoo als einzeln). Gibt die Symbole zurück, für die
+    nichts geladen werden konnte – diese versucht `load_ohlcv` später einzeln.
+    """
+    todo = [s for s in symbols if not _cache_path(cache_dir, s, interval, start, end).exists()]
+    missing: list[str] = []
+    if not todo:
+        return missing
+    yf = _yf()
+    for i in range(0, len(todo), chunk):
+        part = todo[i:i + chunk]
+        try:
+            raw = yf.download(
+                part, start=start, end=end, interval=interval, group_by="ticker",
+                auto_adjust=True, progress=False, threads=True,
+            )
+        except Exception as e:  # noqa: BLE001
+            log.warning("Paket-Download fehlgeschlagen (%s) – einzeln weiter", e)
+            missing += part
+            continue
+        for sym in part:
+            try:
+                sub = raw[sym] if isinstance(raw.columns, pd.MultiIndex) else raw
+                sub = _normalize(sub.dropna(how="all"))
+                if sub.empty:
+                    raise DataError("leer")
+                clean_ohlcv(sub, sym).to_csv(_cache_path(cache_dir, sym, interval, start, end))
+            except Exception:  # noqa: BLE001
+                missing.append(sym)
+        time.sleep(1.0)
+    return missing
+
+
+def load_fx_usd(currency: str, start: str = "2005-01-01",
+                cache_dir: str | Path | None = ".cache/prices") -> pd.Series | None:
+    """
+    Wechselkurs: Wie viele USD ist 1 Einheit `currency` wert (Tagesschluss)?
+    None, wenn kein Kurs verfügbar ist.
+    """
+    sym = fx_symbol(currency)
+    if sym is None:
+        return None
+    try:
+        return load_ohlcv(sym, start=start, cache_dir=cache_dir)["Close"]
+    except DataError as e:
+        log.warning("Wechselkurs %s nicht verfügbar: %s", currency, e)
+        return None
+
+
+def turnover_usd(df: pd.DataFrame, symbol: str, fx: pd.Series | None = None,
+                 window: int = 60) -> pd.Series:
+    """
+    Gehandelter Wert pro Tag in USD, als Median der letzten `window` Tage
+    (nur Vergangenheit, also kein Blick in die Zukunft).
+
+    Ohne passenden Wechselkurs (fx=None bei Nicht-USD-Werten) ist das Ergebnis NaN.
+    """
+    m = market_of(symbol)
+    if m is CRYPTO:
+        daily = df["Volume"].astype(float)          # Yahoo liefert Krypto-Volumen bereits in USD
+    else:
+        daily = df["Close"] / m.price_divisor * df["Volume"]
+        if m.currency != "USD":
+            if fx is None:
+                return pd.Series(np.nan, index=df.index)
+            rate = fx.reindex(df.index.union(fx.index)).ffill().reindex(df.index)
+            daily = daily * rate
+    return daily.rolling(window, min_periods=window // 2).median()
 
 
 def synthetic_ohlcv(

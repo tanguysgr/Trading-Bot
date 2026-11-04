@@ -159,9 +159,15 @@ class QualityGate:
     min_expectancy_lower_r: float     # untere Bootstrap-Grenze des Erwartungswerts
     min_profit_factor: float
     min_winrate_lower: float          # untere Wilson-Grenze in %
-    max_drawdown_pct: float           # z.B. -25 heißt: höchstens 25 % Rückgang
+    max_drawdown_pct: float           # Portfolio-Drawdown im Test, z.B. -25 = höchstens 25 % Rückgang
 
-    def check(self, m: Metrics) -> tuple[bool, list[str]]:
+    def check(self, m: Metrics, portfolio: dict | None = None) -> tuple[bool, list[str]]:
+        """
+        Prüft Trade-Statistik (`m`) und – falls vorhanden – die Portfolio-
+        Simulation des Testzeitraums (`portfolio`). Der Drawdown wird nur im
+        Portfolio geprüft: Bei hunderten Werten überlappen sich Trades, eine
+        einfache Hintereinander-Rechnung wäre dort sinnlos.
+        """
         problems = []
         if m.trades < self.min_trades:
             problems.append(f"zu wenige Trades ({m.trades} < {self.min_trades})")
@@ -175,9 +181,13 @@ class QualityGate:
             problems.append(
                 f"Trefferquote nicht sicher genug ({m.winrate_lower:.1f} % < "
                 f"{self.min_winrate_lower:.1f} % untere Grenze)")
-        if m.max_drawdown_pct < self.max_drawdown_pct:
-            problems.append(
-                f"Drawdown zu groß ({m.max_drawdown_pct:.1f} % < {self.max_drawdown_pct:.1f} %)")
+        if portfolio:
+            dd = portfolio.get("max_drawdown_pct", 0.0)
+            if dd < self.max_drawdown_pct:
+                problems.append(
+                    f"Portfolio-Drawdown im Test zu groß ({dd:.1f} % < {self.max_drawdown_pct:.1f} %)")
+            if portfolio.get("rendite_pa_pct", 0.0) <= 0:
+                problems.append("Portfolio im Test ohne Gewinn")
         return (not problems, problems)
 
 

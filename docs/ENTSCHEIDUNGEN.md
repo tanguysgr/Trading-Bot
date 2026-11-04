@@ -30,3 +30,28 @@ Lieber zu pessimistisch als eine Strategie, die nur auf dem Papier funktioniert.
 ### E6 – Bewertung nach Training/Test-Trennung (2026-11-03)
 Bestanden ist eine Strategie nur, wenn sie im Testzeitraum (nach dem Stichtag)
 die Hürden erfüllt UND im Trainingszeitraum profitabel war.
+
+### E7 – Weltweites Universum aus heutigen Index-Werten (2026-11-04)
+`config/universes/welt.txt`: rund 500 große Aktien aus 24 Märkten plus Krypto.
+Bekannte Schwäche (Survivorship Bias): Es sind die HEUTIGEN Mitglieder großer
+Indizes. Firmen, die pleitegingen oder abstiegen, fehlen – Backtests wirken
+dadurch etwas zu gut. Kostenlose historische Index-Zusammensetzungen gibt es
+nicht zuverlässig; der Fehler wird hingenommen und bei der Bewertung bedacht.
+
+### E8 – Liquiditätsfilter (2026-11-04)
+Ein Signal zählt nur, wenn der Wert damals im Median der letzten 60 Tage für
+mindestens 5 Mio. USD pro Tag gehandelt wurde (umgerechnet mit historischen
+Wechselkursen). So landen keine Trades im Test, die man praktisch nicht
+sauber hätte ausführen können.
+
+### E9 – Portfolio-Regeln (2026-11-04)
+Max. 10 Positionen, max. 4 je Land, 1 % Risiko je Trade, jede Position
+höchstens 10 % des Kontos (kein Hebel). Bei zu vielen Signalen entscheidet die
+6-Monats-Kursentwicklung am Signaltag (relative Stärke). Krypto wird getrennt
+von Aktien simuliert.
+
+### E10 – Drawdown-Hürde über das Portfolio (2026-11-04)
+Bei hunderten Werten laufen Trades gleichzeitig. Ein Kontoverlauf, der alle
+Trades hintereinander verbucht, ist dann sinnlos (zeigte −98 %). Die
+Drawdown-Hürde gilt deshalb jetzt für die Portfolio-Simulation im Testzeitraum,
+zusätzlich muss das Portfolio dort Gewinn machen.

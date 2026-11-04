@@ -15,7 +15,9 @@ Ziel ist nicht blindes Nachtraden, sondern den Markt zu verstehen.
 ```
 trading-bot/
 ├── quantswing/               ← der eigentliche Bot (Python-Paket)
-│   ├── data.py               Kursdaten laden, prüfen, zwischenspeichern
+│   ├── data.py               Kursdaten laden, prüfen, zwischenspeichern, Umsatz in USD
+│   ├── markets.py            Börsenplatz + Währung aus dem Kürzel (SAP.DE → Deutschland, EUR)
+│   ├── universe.py           Universumsdateien lesen
 │   ├── indicators.py         SMA, EMA, ATR, RSI, ADX, Swings, Strukturbruch
 │   ├── strategies/           eine Datei pro Strategie
 │   │   ├── base.py           Grundgerüst, das jede Strategie erfüllen muss
@@ -24,12 +26,15 @@ trading-bot/
 │   ├── backtest/             Prüfstand
 │   │   ├── engine.py         spielt Trades Kerze für Kerze durch
 │   │   ├── metrics.py        Kennzahlen + Hürden „bestanden / nicht bestanden“
-│   │   ├── runner.py         viele Symbole, Trennung Training / Test
+│   │   ├── portfolio.py      Depot-Simulation (Positionslimits, Vergleich mit Index)
+│   │   ├── runner.py         viele Symbole, Liquidität, Trennung Training / Test
 │   │   └── report.py         Bericht als Tabelle
 │   └── __main__.py           Kommandozeile (python -m quantswing …)
-├── config/universes/         Listen von Börsenkürzeln, die getestet werden
+├── config/universes/         Listen von Börsenkürzeln (welt.txt = ~500 Werte weltweit)
 ├── tests/                    automatische Prüfungen (laufen bei jedem Push)
 ├── docs/                     Doku: Fahrplan, Entscheidungen, Erklärungen
+│   ├── ERGEBNISSE.md         Logbuch aller Backtest-Läufe mit Fazit
+│   └── ergebnisse/           vollständige Berichte der Läufe
 ├── legacy/                   alte Gemini-Oberfläche, nur als Vorlage für Phase 3
 └── .github/workflows/        Automatisierung auf GitHub
 ```
@@ -53,8 +58,9 @@ Was die Kennzahlen bedeuten: [docs/BACKTEST_ERKLAERT.md](docs/BACKTEST_ERKLAERT.
 pip install -r requirements.txt -r requirements-dev.txt
 pytest                                                   # Prüfungen
 python -m quantswing backtest --demo                     # Probelauf mit Kunstdaten
-python -m quantswing backtest --universe config/universes/beispiel.txt
+python -m quantswing backtest --universe config/universes/welt.txt
 python -m quantswing backtest --symbols SAP.DE AAPL --strategy trend_pullback
+python -m quantswing universe-check config/universes/welt.txt   # Kürzel prüfen
 ```
 
 ## Arbeitsweise
@@ -65,3 +71,6 @@ python -m quantswing backtest --symbols SAP.DE AAPL --strategy trend_pullback
 - Wichtige Entscheidungen mit Begründung stehen in
   [docs/ENTSCHEIDUNGEN.md](docs/ENTSCHEIDUNGEN.md).
 - Stand und nächste Schritte: [docs/ROADMAP.md](docs/ROADMAP.md).
+- Jeder wichtige Backtest landet mit Fazit im Logbuch
+  [docs/ERGEBNISSE.md](docs/ERGEBNISSE.md) – so bleibt nachvollziehbar,
+  welche Änderung was gebracht hat.
