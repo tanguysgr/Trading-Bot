@@ -61,9 +61,14 @@ def test_no_lookahead_in_strategies(key, df):
     """
     strat = get_strategy(key)
     cut = 600
-    full = strat.run(df)
-    mutated = df.copy()
     rng = np.random.default_rng(0)
+    df = df.copy()
+    # Marktkontext wie im echten Lauf (Werte beliebig, aber fest)
+    df["RS_RANK"] = rng.uniform(0, 1, len(df))
+    df["REGIME_OK"] = (rng.uniform(0, 1, len(df)) > 0.3).astype(float)
+    full = strat.run(df)
+    assert full["signal"].sum() > 0, "Test braucht Signale, sonst prüft er nichts"
+    mutated = df.copy()
     mutated.iloc[cut + 1:] *= rng.uniform(0.5, 1.5, size=(len(df) - cut - 1, 1))
     changed = strat.run(mutated)
     pd.testing.assert_series_equal(full["signal"].iloc[: cut + 1], changed["signal"].iloc[: cut + 1])

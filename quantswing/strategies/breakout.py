@@ -11,6 +11,7 @@ Bedingungen (alle am Tagesschluss):
   4. Kein überdehnter Ausbruch: Schlusskurs höchstens max_ext_atr ATR über
      dem gebrochenen Swing-Hoch
 Stop: `stop_atr` ATR unter dem Schlusskurs.
+Optional (`use_regime`): nur kaufen, wenn der Gesamtmarkt im Aufwärtstrend ist.
 """
 
 from __future__ import annotations
@@ -31,13 +32,23 @@ class BreakoutVolume(Strategy):
         "Kauft, wenn der Kurs im Aufwärtstrend ein bestätigtes Swing-Hoch mit "
         "deutlich erhöhtem Volumen überwindet."
     )
-    target_r: float = 2.0
+    grid = [
+        {"label": "Ziel 2 R", "overrides": {}},
+        {"label": "Ziel 2 R + Regime", "overrides": {"params": {"use_regime": True}}},
+        {"label": "Trailing 3 ATR",
+         "overrides": {"target_r": None, "trail_atr": 3.0, "max_bars": 120}},
+        {"label": "Trailing 3 ATR + Regime",
+         "overrides": {"target_r": None, "trail_atr": 3.0, "max_bars": 120,
+                       "params": {"use_regime": True}}},
+    ]
+    target_r: float | None = 2.0
     max_bars: int = 30
     params: dict = field(default_factory=lambda: {
         "swing_strength": 3,
         "rvol_min": 1.5,
         "max_ext_atr": 1.5,
         "stop_atr": 2.0,
+        "use_regime": False,
     })
 
     def prepare(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -57,7 +68,10 @@ class BreakoutVolume(Strategy):
         trend = out["Close"] > out["SMA200"]
         volume_ok = out["RVOL"] >= p["rvol_min"]
         not_extended = (out["Close"] - out["SWING_HIGH"]) <= p["max_ext_atr"] * out["ATR"]
-        out["signal"] = (trend & out["BOS_UP"] & volume_ok & not_extended).fillna(False)
+        cond = trend & out["BOS_UP"] & volume_ok & not_extended
+        if p.get("use_regime"):
+            cond &= self.regime_ok(out)
+        out["signal"] = cond.fillna(False)
         out["stop"] = out["Close"] - p["stop_atr"] * out["ATR"]
         return out
 
@@ -68,4 +82,4 @@ class BreakoutVolume(Strategy):
             f"Strukturbruch: Schluss über bestätigtem Swing-Hoch {row['SWING_HIGH']:.2f}",
             f"Volumen: RVOL {row['RVOL']:.2f} (≥ {p['rvol_min']:.1f}× Durchschnitt)",
             f"Stop {p['stop_atr']:.1f} ATR ({row['ATR']:.2f}) unter Einstiegssignal",
-        ]
+        ] + (["Gesamtmarkt im Aufwärtstrend (Leitindex über SMA200)"] if p.get("use_regime") else [])

@@ -29,9 +29,14 @@ class Strategy:
     title: ClassVar[str] = "Basis"
     description: ClassVar[str] = ""
 
+    # Varianten für den Walk-Forward-Test: Liste von
+    # {"label": "Kurzname", "overrides": {...}} – siehe get_strategy()
+    grid: ClassVar[list[dict]] = []
+
     # Ausstiegsregeln (gelten für alle Strategien, pro Strategie anpassbar)
-    target_r: float = 2.0      # Kursziel als Vielfaches des Risikos (CRV)
-    max_bars: int = 40         # Zeit-Stop: spätestens nach so vielen Tagen raus
+    target_r: float | None = 2.0      # Kursziel als Vielfaches des Risikos (CRV); None = kein Ziel
+    trail_atr: float | None = None    # Trailing-Stop-Abstand in ATR; None = aus
+    max_bars: int = 40                # Zeit-Stop: spätestens nach so vielen Tagen raus
     direction: str = "LONG"
 
     params: dict = field(default_factory=dict)
@@ -51,6 +56,25 @@ class Strategy:
         """Begründungen in Klartext für ein Signal an dieser Kerze."""
         return []
 
+    @staticmethod
+    def regime_ok(df: pd.DataFrame) -> pd.Series:
+        """
+        True an Tagen mit positivem Gesamtmarkt (Spalte REGIME_OK, kommt aus
+        quantswing/context.py). Fehlt die Spalte, gilt der Filter als aus.
+        """
+        if "REGIME_OK" not in df:
+            return pd.Series(True, index=df.index)
+        return df["REGIME_OK"] == 1.0
+
+    def exit_text(self) -> str:
+        parts = []
+        if self.target_r is not None:
+            parts.append(f"Kursziel {self.target_r:g} R")
+        if self.trail_atr:
+            parts.append(f"Trailing-Stop {self.trail_atr:g} ATR")
+        parts.append(f"Zeit-Stop {self.max_bars} Tage")
+        return " · ".join(parts)
+
     def run(self, df: pd.DataFrame) -> pd.DataFrame:
         out = self.signals(self.prepare(df))
         out["signal"] = out["signal"].fillna(False).astype(bool)
@@ -62,7 +86,9 @@ class Strategy:
             "title": self.title,
             "description": self.description,
             "target_r": self.target_r,
+            "trail_atr": self.trail_atr,
             "max_bars": self.max_bars,
+            "exits": self.exit_text(),
             "direction": self.direction,
             "params": dict(self.params),
         }

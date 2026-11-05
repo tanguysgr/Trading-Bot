@@ -19,12 +19,18 @@
 - [x] Vergleich mit Kaufen & Halten (SPY, ACWI, BTC)
 - [x] Ergebnis-Logbuch (`docs/ERGEBNISSE.md`)
 
-### 2b – Strategien verbessern
-- [ ] Walk-Forward-Test (rollierende Training/Test-Fenster) statt eines Stichtags
-- [ ] Markt-Regime-Filter (z.B. Leitindex über SMA200, Volatilität)
-- [ ] Ausstiege: Trailing-Stop / Gewinne laufen lassen statt festem 2-R-Ziel
-- [ ] Relative Stärke als eigene Strategie bzw. Hauptkriterium
-- [ ] Weitere Ideen testen und aussortieren
+### 2b – Strategien verbessern ✅
+- [x] Walk-Forward-Test (2-Jahres-Testfenster ab 2010, Variantenwahl nur mit Vergangenheit)
+- [x] Markt-Regime-Filter (SPY bzw. Bitcoin über SMA200, um einen Tag verzögert)
+- [x] Ausstiege: Trailing-Stop / Gewinne laufen lassen statt festem 2-R-Ziel
+- [x] Relative Stärke als eigene Strategie (bisher beste Idee, Hürde knapp verfehlt)
+- [x] Vergleichsmaßstäbe: MAR-Quote, Universum gleichgewichtet
+
+### 2b+ – offene Forschungsfragen (nach Bedarf)
+- [ ] Wie gehen wir damit um, dass noch keine Strategie die Hürden besteht? (siehe ERGEBNISSE.md)
+- [ ] Survivorship Bias verringern (historische Index-Zusammensetzungen, ggf. kostenpflichtig)
+- [ ] Positionsgröße: Hebelgrenze 10 %/Position drückt das echte Risiko auf ~0,6 % je Trade
+- [ ] Wirtschaftsdaten/Ereignisse als Filter (Earnings-Termine, Zinsentscheide)
 
 ### 2c – Täglicher Scanner
 - [ ] Nur Signale aus Strategien, die die Hürden bestanden haben

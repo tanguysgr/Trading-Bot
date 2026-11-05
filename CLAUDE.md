@@ -10,6 +10,9 @@
   eintragen, wird automatisch vom Look-ahead-Test in `tests/test_indicators.py` geprüft.
 - Arbeitsweise: ein Branch + Pull Request pro Phase/Thema; Entscheidungen in
   `docs/ENTSCHEIDUNGEN.md`, Stand in `docs/ROADMAP.md` pflegen.
+- Bewertung neuer Strategien per Walk-Forward (`python -m quantswing walkforward`).
+  Höchstens wenige vorab festgelegte Varianten (`grid`), Versuchszähler in
+  `docs/ERGEBNISSE.md` erhöhen. Hürden nie nachträglich senken (E13).
 - Wichtige Backtest-Läufe: Bericht nach `docs/ergebnisse/<datum>_<thema>.md`,
   Kurzfazit oben in `docs/ERGEBNISSE.md`.
 - Vor jedem Push: `pytest -q`.

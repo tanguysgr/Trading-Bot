@@ -14,6 +14,10 @@ zu gut sind):
 5. Eröffnet ein Tag jenseits von Stop oder Ziel (Gap), wird zum
    Eröffnungskurs ausgeführt – beim Stop also schlechter als geplant.
 6. Zeit-Stop: nach `max_bars` Tagen Ausstieg zum Schlusskurs.
+6b. Trailing-Stop (falls die Strategie `trail_atr` setzt): Nach jedem Schluss
+   wird der Stop auf "höchstes Hoch seit Einstieg − trail_atr × ATR" angehoben,
+   aber nie gesenkt. Der neue Stop gilt ab der NÄCHSTEN Kerze. Ohne festes
+   Kursziel (`target_r = None`) laufen Gewinne, bis der Trend dreht.
 7. Gebühren und Slippage werden bei Ein- UND Ausstieg abgezogen.
 8. Pro Symbol höchstens eine offene Position gleichzeitig.
 """
@@ -80,6 +84,8 @@ EXIT_LABELS = {
     "stop_gap": "Stop-Loss (Gap, schlechter ausgeführt)",
     "target": "Kursziel",
     "target_gap": "Kursziel (Gap, besser ausgeführt)",
+    "trail": "Trailing-Stop (Gewinne gesichert)",
+    "trail_gap": "Trailing-Stop (Gap, schlechter ausgeführt)",
     "time": "Zeit-Stop",
     "end_of_data": "Datenende (noch offen)",
 }
@@ -113,6 +119,14 @@ def run_backtest(
     dates = sig.index
     n = len(sig)
 
+    trail = strategy.trail_atr
+    atr_arr = None
+    if trail:
+        if "ATR" not in sig:
+            raise ValueError(f"{strategy.key}: Trailing-Stop braucht eine Spalte 'ATR'")
+        atr_arr = sig["ATR"].to_numpy(float)
+    use_target = strategy.target_r is not None
+
     long = strategy.direction.upper() == "LONG"
     s = 1.0 if long else -1.0   # Vorzeichen: Gewinnrichtung
 
@@ -121,6 +135,8 @@ def run_backtest(
     pos_i = -1                     # Index der Einstiegskerze
     risk = 0.0                     # Risiko je Stück in Preis-Einheiten (nach Kosten-Einstieg)
     worst = best = 0.0
+    cur_stop = np.nan              # aktueller (ggf. nachgezogener) Stop
+    extreme = np.nan               # höchstes Hoch (Long) bzw. tiefstes Tief (Short) seit Einstieg
 
     def close_position(i: int, raw_price: float, reason: str) -> None:
         nonlocal pos
@@ -147,6 +163,7 @@ def run_backtest(
             entry = o[i] * (1.0 + s * costs.slippage)
             planned_risk = s * (entry - stop)
             if np.isfinite(stop) and planned_risk > 0:
+                target = entry + s * strategy.target_r * planned_risk if use_target else np.nan
                 pos = Trade(
                     symbol=symbol,
                     strategy=strategy.key,
@@ -155,38 +172,49 @@ def run_backtest(
                     entry_date=dates[i],
                     entry_price=entry,
                     stop_price=stop,
-                    target_price=entry + s * strategy.target_r * planned_risk,
+                    target_price=target,
                     reasons=strategy.explain(sig.iloc[i - 1]),
                 )
                 pos_i, risk = i, planned_risk
                 worst = best = 0.0
+                cur_stop = stop
+                extreme = o[i]
 
         if pos is None:
             continue
 
         # --- 2) Ausstieg prüfen ----------------------------------------
-        stop, target = pos.stop_price, pos.target_price
+        target = pos.target_price
+        trailed = s * (cur_stop - pos.stop_price) > 0   # Stop wurde schon nachgezogen
         adverse = l[i] if long else h[i]
         favorable = h[i] if long else l[i]
         worst = min(worst, s * (adverse - pos.entry_price))
         best = max(best, s * (favorable - pos.entry_price))
 
         if i > pos_i:  # Gaps gibt es erst ab dem Folgetag
-            if s * (o[i] - stop) <= 0:
-                close_position(i, o[i], "stop_gap")
+            if s * (o[i] - cur_stop) <= 0:
+                close_position(i, o[i], "trail_gap" if trailed else "stop_gap")
                 continue
-            if s * (o[i] - target) >= 0:
+            if use_target and s * (o[i] - target) >= 0:
                 close_position(i, o[i], "target_gap")
                 continue
 
-        hit_stop = s * (adverse - stop) <= 0
-        hit_target = s * (favorable - target) >= 0
+        hit_stop = s * (adverse - cur_stop) <= 0
+        hit_target = use_target and s * (favorable - target) >= 0
         if hit_stop:                       # Regel 4: Stop hat Vorrang
-            close_position(i, stop, "stop")
+            close_position(i, cur_stop, "trail" if trailed else "stop")
         elif hit_target:
             close_position(i, target, "target")
         elif i - pos_i + 1 >= strategy.max_bars:
             close_position(i, c[i], "time")
+
+        # --- 3) Stop nachziehen (gilt erst ab der nächsten Kerze) ---------
+        if pos is not None and trail:
+            extreme = max(extreme, h[i]) if long else min(extreme, l[i])
+            if np.isfinite(atr_arr[i]):
+                candidate = extreme - s * trail * atr_arr[i]
+                if s * (candidate - cur_stop) > 0:
+                    cur_stop = candidate
 
     if pos is not None:
         close_position(n - 1, c[n - 1], "end_of_data")
