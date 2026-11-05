@@ -7,6 +7,7 @@ Beispiele:
   python -m quantswing backtest --symbols AAPL SAP.DE BTC-USD --strategy trend_pullback
   python -m quantswing backtest --demo            # ohne Internet, mit Kunstdaten
   python -m quantswing universe-check config/universes/welt.txt
+  python -m quantswing chart SAP.DE NVDA BTC-USD --von 2025-08-01      # Prüf-Charts
 """
 
 from __future__ import annotations
@@ -168,6 +169,18 @@ def cmd_universe_check(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_chart(args: argparse.Namespace) -> int:
+    """Prüf-Charts: Swings, BOS/CHoCH, Fibonacci, Zonen und SMAs je Symbol als PNG."""
+    from .charts import plot_structure
+
+    out = Path(args.out)
+    for sym in args.symbols:
+        df = load_ohlcv(sym.upper(), start=args.start, cache_dir=args.cache)
+        path = plot_structure(df, sym.upper(), args.von, out / f"{sym.upper().replace('.', '_')}.png")
+        print(path)
+    return 0
+
+
 def _common(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--symbols", nargs="*", help="Börsenkürzel, z.B. AAPL SAP.DE BTC-USD")
     parser.add_argument("--universe", action="append", help="Universumsdatei (mehrfach möglich)")
@@ -206,6 +219,15 @@ def main(argv: list[str] | None = None) -> int:
     u.add_argument("--cache", default=".cache/prices")
     u.add_argument("-v", "--verbose", action="store_true")
     u.set_defaults(func=cmd_universe_check)
+
+    c = sub.add_parser("chart", help="Prüf-Chart: was erkennt der Bot auf dem Chart?")
+    c.add_argument("symbols", nargs="+")
+    c.add_argument("--von", default="2025-01-01", help="Chart-Ausschnitt ab (JJJJ-MM-TT)")
+    c.add_argument("--start", default="2018-01-01", help="Kursdaten ab (für SMA 200 & Co.)")
+    c.add_argument("--out", default="charts")
+    c.add_argument("--cache", default=".cache/prices")
+    c.add_argument("-v", "--verbose", action="store_true")
+    c.set_defaults(func=cmd_chart)
 
     args = p.parse_args(argv)
     logging.basicConfig(level=logging.INFO if getattr(args, "verbose", False) else logging.WARNING,
