@@ -9,7 +9,55 @@ ungesehenen Daten: beim Walk-Forward alle Testfenster zusammen, beim einfachen T
 ---
 
 **Versuchszähler** (je mehr Ideen getestet werden, desto eher ist ein Treffer Zufall):
-3 Strategie-Ideen · 12 Varianten · Stand 2026-11-05
+4 Strategie-Ideen · 20 Varianten (+ 14 Kontrollläufe, nie auswählbar) · Stand 2026-11-06
+
+---
+
+## 2026-11-06 · Phase 2c · Confluence-Strategie des Nutzers (Long + Short)
+
+Bericht: [2026-11-06_phase2c_confluence.md](ergebnisse/2026-11-06_phase2c_confluence.md)
+Regeln: Trend (SMA50/200 + BOS/CHoCH) + Zone (SMA, Fibonacci 0,5–0,618, Swing-Zone) +
+Bestätigungskerze, Ziel 1,25 R (E19). Walk-Forward ab 2010, 4 Varianten je Richtung.
+
+| Richtung | Klasse | Trades OOS | Trefferquote | Ø R | sicher ≥ | Depot p.a. | Drawdown | MAR | Urteil |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---|
+| Long | Aktien | 23 755 | 40,5 % | +0,03 | −0,00 | 5,7 % | −33,2 % | 0,17 | ❌ |
+| Long | Krypto | 183 | 39,9 % | +0,70 | +0,28 | 11,2 % | −12,3 % | 0,91 | ❌ Trefferquote < 50 % |
+| Short | Aktien | 0 | – | – | – | – | – | – | ❌ nie profitabel, nie gehandelt |
+| Short | Krypto | 98 | 25,5 % | −0,16 | −0,37 | −1,8 % | −16,2 % | – | ❌ |
+
+Vergleich Aktien (2010–2026): SPY 13,7 % (MAR 0,41), ACWI 9,9 % (0,30). Krypto (2018–2026): BTC 34,0 % (MAR 0,44).
+
+**Kontrollläufe – welcher Baustein trägt? (feste Regeln, alle Trades ab 2010)**
+
+| Lauf | Aktien Long: Trefferquote / Ø R | Krypto Long: Trefferquote / Ø R |
+|---|---|---|
+| V1 Basis | 48,6 % / −0,01 R | 52,3 % / +0,15 R |
+| K1 ohne Fibonacci | 48,5 % / −0,02 R | 52,6 % / +0,15 R |
+| K2 Zufalls-Fibonacci (5 Läufe) | 48,5–48,6 % / −0,02 bis −0,00 R | 51,5–54,3 % / +0,14 bis +0,18 R |
+| K3 Ausbruch statt BOS/CHoCH | 48,6 % / −0,02 R | 51,7 % / +0,13 R |
+
+Zufallsniveau bei 1,25 R: 44,4 %.
+
+**Fazit**
+- **Fibonacci trägt nichts bei.** Ohne Fibonacci oder mit zufälligen Zonen gleicher Breite
+  sind die Ergebnisse praktisch identisch – bei Aktien wie bei Krypto. Deckt sich mit der Recherche.
+- **BOS/CHoCH ist nicht besser als ein simpler 20-Tage-Ausbruch** als Trendbestätigung.
+- **Aktien Long:** Die Trefferquote liegt 4 Prozentpunkte über dem Zufallsniveau, aber Kosten
+  und Kurslücken fressen das auf (Ø −0,01 R bei festem Ziel). Ein Teil der 4 Pp dürfte zudem
+  aus dem Survivorship Bias stammen (nur heutige Gewinner im Universum steigen im Schnitt).
+  Mit Trailing-Stop (V4) bleibt ein kleiner Vorteil (+0,04 R), der als Depot aber deutlich
+  hinter dem Index liegt.
+- **Short bei Aktien verliert klar** (Trefferquote 36 %, 9 Pp UNTER dem Zufall, −0,26 R). Der
+  Walk-Forward hat deshalb zu Recht nie gehandelt. Achtung: Survivorship Bias benachteiligt
+  Shorts besonders – die Liste enthält nur Firmen, die sich am Ende erholt haben. Der wahre Wert
+  ist vermutlich weniger schlecht, aber kaum positiv.
+- **Krypto Long ist der interessanteste Teil:** Mit Trailing-Stop +0,70 R je Trade (sicher
+  ≥ +0,28 R), als Depot 11 % p.a. bei nur −12 % Rückgang – risikobereinigt doppelt so gut wie
+  Bitcoin halten (MAR 0,91 vs. 0,44). Aber: Trefferquote 40 %, die Krypto-Hürde (sicher > 50 %,
+  E16) ist damit klar verfehlt. Die Variante mit festem Ziel und internem Bruch (V3) erreicht
+  55 % Trefferquote, ist mit 132 Trades aber noch nicht sicher über 50 % (untere Grenze 48 %).
+  Nur 6 Coins und wenige Jahre – mehr Trades kann es nur über 4H-Daten geben (Teil 3).
 
 ---
 

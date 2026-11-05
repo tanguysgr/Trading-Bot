@@ -35,7 +35,7 @@
 ### 2c – Deine Confluence-Strategie (SMA, Fibonacci, Zonen, BOS/CHoCH)
 Recherche: `docs/recherche/confluence_regeln.md`
 - [x] Teil 1: Bausteine als geprüfte Indikatoren (Swings, BOS/CHoCH, Fibonacci, Zonen) + Prüf-Charts
-- [ ] Teil 2: Strategie Long + Short, 4 Varianten, 3 Kontrollläufe, Walk-Forward
+- [x] Teil 2: Strategie Long + Short, 4 Varianten, 3 Kontrollläufe, Walk-Forward (Ergebnis: Fibonacci und BOS ohne Mehrwert, Krypto Long vielversprechend)
 - [ ] Teil 3: Daten-Import 1H/4H (Binance für Krypto, Alpaca für US-Aktien)
 
 ### 2d – Täglicher Scanner
