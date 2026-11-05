@@ -19,4 +19,6 @@ jobs:
       - name: Tests ausführen
         run: pytest -q
       - name: Demo-Backtest (Kunstdaten, prüft dass alles zusammenspielt)
-        run: python -m quantswing backtest --demo --out demo-results > /dev/null
+        run: |
+          python -m quantswing backtest --demo --out demo-results > /dev/null
+          python -m quantswing walkforward --demo --out demo-results > /dev/null

@@ -22,6 +22,7 @@ from typing import Callable
 
 import pandas as pd
 
+from ..context import asof_before, regime_flag, rs_rank
 from ..data import DataError, turnover_usd
 from ..markets import asset_class, currency_of, market_of
 from ..strategies.base import Strategy
@@ -44,6 +45,7 @@ class RunConfig:
     portfolio: PortfolioRules = field(default_factory=PortfolioRules)
     benchmarks: tuple[str, ...] = ("SPY", "ACWI")      # Vergleich für Aktien
     crypto_benchmarks: tuple[str, ...] = ("BTC-USD",)  # Vergleich für Krypto
+    regime_symbols: dict = field(default_factory=lambda: {"stock": "SPY", "crypto": "BTC-USD"})
 
 
 @dataclass
@@ -129,42 +131,125 @@ def _tradable(df: pd.DataFrame, sym: str, cfg: RunConfig, fx_loader: FxLoader | 
     return turnover_usd(df, sym, fx) >= cfg.min_turnover_usd
 
 
+@dataclass
+class Universe:
+    """Einmal geladene und vorbereitete Daten – für mehrere Strategien wiederverwendbar."""
+    data: dict[str, pd.DataFrame] = field(default_factory=dict)       # OHLCV + Kontextspalten
+    tradable: dict[str, "pd.Series | None"] = field(default_factory=dict)
+    failed: dict[str, str] = field(default_factory=dict)
+    notes: list[str] = field(default_factory=list)
+
+
+def prepare_universe(
+    symbols: list[str],
+    loader: Loader,
+    cfg: RunConfig | None = None,
+    fx_loader: FxLoader | None = None,
+) -> Universe:
+    """Lädt alle Symbole, berechnet Liquidität und Marktkontext (Regime, relative Stärke)."""
+    cfg = cfg or RunConfig()
+    uni = Universe()
+    fx_cache: dict = {}
+    for sym in symbols:
+        try:
+            df = loader(sym)
+            if len(df) < 260:
+                raise DataError(f"nur {len(df)} Kerzen (mind. 260 nötig)")
+            uni.data[sym] = df.copy()
+            uni.tradable[sym] = _tradable(df, sym, cfg, fx_loader, fx_cache, uni.notes)
+        except Exception as e:  # Fehler sichtbar sammeln statt verschlucken
+            log.warning("%s übersprungen: %s", sym, e)
+            uni.failed[sym] = str(e)
+
+    for cls in ("stock", "crypto"):
+        syms = [s for s in uni.data if asset_class(s) == cls]
+        if not syms:
+            continue
+        ranks = rs_rank({s: uni.data[s]["Close"] for s in syms})
+        flag = None
+        bench = cfg.regime_symbols.get(cls)
+        try:
+            flag = regime_flag(loader(bench)["Close"]) if bench else None
+        except Exception as e:  # noqa: BLE001
+            log.warning("Regime-Leitwert %s nicht verfügbar: %s", bench, e)
+        if flag is None:
+            uni.notes.append(f"Regime-Filter für {cls} ausgesetzt (Leitwert {bench} fehlt)")
+        for s in syms:
+            df = uni.data[s]
+            df["RS_RANK"] = ranks[s]
+            df["REGIME_OK"] = asof_before(flag, df.index) if flag is not None else 1.0
+    return uni
+
+
+def collect_trades(uni: Universe, strategy: Strategy) -> pd.DataFrame:
+    """Alle Trades einer Strategie über das ganze Universum (ohne Depot-Begrenzung)."""
+    frames = []
+    for sym, df in uni.data.items():
+        trades = run_backtest(df, strategy, sym, Costs.for_asset(asset_class(sym)),
+                              uni.tradable.get(sym))
+        tf = trades_to_frame(trades)
+        if tf.empty:
+            continue
+        prio = df["Close"] / df["Close"].shift(PRIORITY_LOOKBACK) - 1.0
+        prio.index = prio.index.strftime("%Y-%m-%d")
+        tf["priority"] = tf["signal_date"].map(prio)
+        tf["market"] = market_of(sym).code
+        frames.append(tf)
+    return pd.concat(frames, ignore_index=True) if frames else trades_to_frame([])
+
+
 def run_many(
     symbols: list[str],
     strategy: Strategy,
     loader: Loader,
     cfg: RunConfig | None = None,
     fx_loader: FxLoader | None = None,
+    universe: Universe | None = None,
 ) -> BacktestResult:
+    """Einfacher Backtest mit festem Stichtag (Training davor, Test danach)."""
     cfg = cfg or RunConfig()
+    uni = universe or prepare_universe(symbols, loader, cfg, fx_loader)
     res = BacktestResult(strategy=strategy.describe(), split_date=cfg.split_date,
                          config={"min_umsatz_usd": cfg.min_turnover_usd,
                                  "portfolio": cfg.portfolio.__dict__})
-    frames, fx_cache = [], {}
-    for sym in symbols:
-        try:
-            df = loader(sym)
-            if len(df) < 260:
-                raise DataError(f"nur {len(df)} Kerzen (mind. 260 nötig)")
-            tradable = _tradable(df, sym, cfg, fx_loader, fx_cache, res.notes)
-            trades = run_backtest(df, strategy, sym, Costs.for_asset(asset_class(sym)), tradable)
-            tf = trades_to_frame(trades)
-            if not tf.empty:
-                prio = df["Close"].pct_change(PRIORITY_LOOKBACK)
-                prio.index = prio.index.strftime("%Y-%m-%d")
-                tf["priority"] = tf["signal_date"].map(prio)
-                tf["market"] = market_of(sym).code
-                frames.append(tf)
-            res.symbols_ok.append(sym)
-        except Exception as e:  # Fehler sichtbar sammeln statt verschlucken
-            log.warning("%s übersprungen: %s", sym, e)
-            res.symbols_failed[sym] = str(e)
-
-    res.trades = pd.concat(frames, ignore_index=True) if frames else trades_to_frame([])
+    res.symbols_ok = list(uni.data)
+    res.symbols_failed = dict(uni.failed)
+    res.notes = list(uni.notes)
+    res.trades = collect_trades(uni, strategy)
     res.portfolio = _portfolio_section(res.trades, cfg, loader)
     res.summary = evaluate(res.trades, cfg.split_date, res.portfolio)
     res.by_market = market_breakdown(res.trades)
     return res
+
+
+def benchmarks_for(cls: str, start: str, end: str, cfg: RunConfig, loader: Loader) -> dict:
+    """Kaufen-&-Halten-Vergleich im selben Zeitraum (Aktien: SPY/ACWI, Krypto: BTC)."""
+    out = {}
+    for b in (cfg.benchmarks if cls == "stock" else cfg.crypto_benchmarks):
+        try:
+            out[b] = buy_and_hold(loader(b)["Close"], start, end)
+        except Exception as e:  # noqa: BLE001
+            log.warning("Vergleichswert %s nicht verfügbar: %s", b, e)
+    return out
+
+
+UNIVERSE_BENCH = "Universum gleichgewichtet"
+
+
+def universe_benchmark(uni: Universe, cls: str, start: str, end: str) -> dict:
+    """
+    Kaufen & Halten aller Werte des Universums zu gleichen Teilen (täglich
+    neu gewichtet, Renditen in Landeswährung). Weil das Universum aus heutigen
+    Index-Mitgliedern besteht, zeigt dieser Vergleich, wie viel
+    "Überlebenden-Vorteil" schon in den Daten steckt.
+    """
+    rets = {s: df["Close"].pct_change() for s, df in uni.data.items() if asset_class(s) == cls}
+    if not rets:
+        return {}
+    daily = pd.DataFrame(rets).sort_index().loc[start:end].mean(axis=1, skipna=True).fillna(0.0)
+    if daily.empty:
+        return {}
+    return buy_and_hold((1.0 + daily).cumprod(), start, end)
 
 
 def _portfolio_section(trades: pd.DataFrame, cfg: RunConfig, loader: Loader) -> dict:
@@ -178,17 +263,11 @@ def _portfolio_section(trades: pd.DataFrame, cfg: RunConfig, loader: Loader) -> 
         if subset_cls.empty:
             continue
         _, test = _split(subset_cls, cfg.split_date)
-        benchmarks = cfg.benchmarks if cls == "stock" else cfg.crypto_benchmarks
         out[cls] = {}
         for label, subset in (("gesamt", subset_cls), ("test", test)):
             if subset.empty:
                 continue
             sim = simulate_portfolio(subset, cfg.portfolio)
-            bench = {}
-            for b in benchmarks:
-                try:
-                    bench[b] = buy_and_hold(loader(b)["Close"], sim.stats["start"], sim.stats["ende"])
-                except Exception as e:  # noqa: BLE001
-                    log.warning("Vergleichswert %s nicht verfügbar: %s", b, e)
-            out[cls][label] = {**sim.stats, "vergleich": bench}
+            out[cls][label] = {**sim.stats, "vergleich": benchmarks_for(
+                cls, sim.stats["start"], sim.stats["ende"], cfg, loader)}
     return out

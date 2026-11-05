@@ -10,6 +10,7 @@ Bedingungen (alle am Tagesschluss):
   3. Rücksetzer: RSI(14) war in den letzten `lookback` Tagen unter `rsi_dip`
   4. Wende: Schlusskurs über dem Hoch des Vortags (Käufer übernehmen wieder)
 Stop: unter dem tiefsten Tief der letzten `lookback` Tage, mindestens 1 ATR.
+Optional (`use_regime`): nur kaufen, wenn der Gesamtmarkt im Aufwärtstrend ist.
 """
 
 from __future__ import annotations
@@ -31,13 +32,23 @@ class TrendPullback(Strategy):
         "Kauft im intakten Aufwärtstrend (Kurs > SMA200, SMA50 > SMA200, ADX stark), "
         "nachdem ein Rücksetzer (RSI tief) wieder nach oben dreht."
     )
-    target_r: float = 2.0
+    grid = [
+        {"label": "Ziel 2 R", "overrides": {}},
+        {"label": "Ziel 2 R + Regime", "overrides": {"params": {"use_regime": True}}},
+        {"label": "Trailing 3 ATR",
+         "overrides": {"target_r": None, "trail_atr": 3.0, "max_bars": 120}},
+        {"label": "Trailing 3 ATR + Regime",
+         "overrides": {"target_r": None, "trail_atr": 3.0, "max_bars": 120,
+                       "params": {"use_regime": True}}},
+    ]
+    target_r: float | None = 2.0
     max_bars: int = 40
     params: dict = field(default_factory=lambda: {
         "adx_min": 20.0,
         "rsi_dip": 40.0,
         "lookback": 5,
         "min_stop_atr": 1.0,
+        "use_regime": False,
     })
 
     def prepare(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -61,7 +72,10 @@ class TrendPullback(Strategy):
         dipped = out["RSI_MIN_LB"] < p["rsi_dip"]
         turn = out["Close"] > out["High"].shift(1)
 
-        out["signal"] = (trend & strong & dipped & turn).fillna(False)
+        cond = trend & strong & dipped & turn
+        if p.get("use_regime"):
+            cond &= self.regime_ok(out)
+        out["signal"] = cond.fillna(False)
         structural_stop = out["LOW_LB"]
         atr_stop = out["Close"] - p["min_stop_atr"] * out["ATR"]
         out["stop"] = np.minimum(structural_stop, atr_stop)
@@ -78,4 +92,4 @@ class TrendPullback(Strategy):
             "Wende: Schlusskurs über dem Vortageshoch",
             f"Stop unter dem {int(p['lookback'])}-Tage-Tief bzw. mind. "
             f"{p['min_stop_atr']:.1f} ATR ({row['ATR']:.2f}) Abstand",
-        ]
+        ] + (["Gesamtmarkt im Aufwärtstrend (Leitindex über SMA200)"] if p.get("use_regime") else [])

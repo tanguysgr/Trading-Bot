@@ -2,7 +2,8 @@
 Kommandozeile.
 
 Beispiele:
-  python -m quantswing backtest --universe config/universes/welt.txt
+  python -m quantswing walkforward --universe config/universes/welt.txt     # ehrlichster Test
+  python -m quantswing backtest --universe config/universes/welt.txt        # fester Stichtag
   python -m quantswing backtest --symbols AAPL SAP.DE BTC-USD --strategy trend_pullback
   python -m quantswing backtest --demo            # ohne Internet, mit Kunstdaten
   python -m quantswing universe-check config/universes/welt.txt
@@ -14,15 +15,18 @@ import argparse
 import json
 import logging
 import sys
+import time
 from pathlib import Path
 
 from .backtest.portfolio import PortfolioRules
-from .backtest.report import to_markdown
-from .backtest.runner import RunConfig, run_many
+from .backtest.report import to_markdown, walkforward_markdown
+from .backtest.runner import RunConfig, prepare_universe, run_many
+from .backtest.walkforward import WFConfig, walk_forward
 from .data import load_fx_usd, load_ohlcv, prefetch, synthetic_ohlcv
 from .strategies import REGISTRY, get_strategy
 from .universe import by_market, read_universe
 
+DEMO_SYMBOLS = ["DEMO-A", "DEMO-B", "DEMO-C", "DEMO-D", "DEMO-E", "DEMO-F", "DEMO-G", "DEMO-H"]
 
 
 def _symbols(args: argparse.Namespace) -> list[str]:
@@ -32,9 +36,10 @@ def _symbols(args: argparse.Namespace) -> list[str]:
     return list(dict.fromkeys(symbols))
 
 
-def cmd_backtest(args: argparse.Namespace) -> int:
+def _setup(args: argparse.Namespace):
+    """Gemeinsamer Teil von backtest und walkforward: Einstellungen, Daten, Universum."""
     cfg = RunConfig(
-        split_date=args.split,
+        split_date=getattr(args, "split", "2018-01-01"),
         min_turnover_usd=args.min_turnover * 1e6,
         portfolio=PortfolioRules(max_positions=args.max_positions,
                                  max_per_market=args.max_per_market,
@@ -42,21 +47,22 @@ def cmd_backtest(args: argparse.Namespace) -> int:
     )
     fx_loader = None
     if args.demo:
-        cfg.benchmarks = ()
-        symbols = ["DEMO-A", "DEMO-B", "DEMO-C", "DEMO-D", "DEMO-E"]
-        seeds = {s: i + 1 for i, s in enumerate(symbols)}
+        cfg.benchmarks, cfg.crypto_benchmarks = (), ()
+        cfg.regime_symbols = {"stock": "DEMO-INDEX"}
+        seeds = {s: i + 1 for i, s in enumerate(DEMO_SYMBOLS + ["DEMO-INDEX"])}
+        symbols = list(DEMO_SYMBOLS)
 
         def loader(s):
             if s not in seeds:
                 raise KeyError(f"{s} gibt es im Demo-Modus nicht")
-            return synthetic_ohlcv(n=4000, seed=seeds[s], start="2008-01-01")
+            return synthetic_ohlcv(n=4500, seed=seeds[s], start="2006-01-01")
     else:
         symbols = _symbols(args)
         if not symbols:
-            print("Keine Symbole angegeben (--symbols oder --universe).", file=sys.stderr)
-            return 2
+            return None
+        extra = list(cfg.benchmarks) + list(cfg.crypto_benchmarks) + list(cfg.regime_symbols.values())
         print(f"Lade Kursdaten für {len(symbols)} Symbole …", file=sys.stderr)
-        prefetch(symbols + list(cfg.benchmarks), start=args.start, cache_dir=args.cache)
+        prefetch(list(dict.fromkeys(symbols + extra)), start=args.start, cache_dir=args.cache)
 
         def loader(s):
             return load_ohlcv(s, start=args.start, cache_dir=args.cache)
@@ -64,11 +70,25 @@ def cmd_backtest(args: argparse.Namespace) -> int:
         def fx_loader(cur):
             return load_fx_usd(cur, start=args.start, cache_dir=args.cache)
 
-    keys = list(REGISTRY) if args.strategy == "all" else [args.strategy]
+    print("Bereite Universum vor (Liquidität, Regime, relative Stärke) …", file=sys.stderr)
+    uni = prepare_universe(symbols, loader, cfg, fx_loader)
+    return cfg, loader, uni
+
+
+def _keys(args) -> list[str]:
+    return list(REGISTRY) if args.strategy == "all" else [args.strategy]
+
+
+def cmd_backtest(args: argparse.Namespace) -> int:
+    setup = _setup(args)
+    if setup is None:
+        print("Keine Symbole angegeben (--symbols oder --universe).", file=sys.stderr)
+        return 2
+    cfg, loader, uni = setup
     results = []
-    for key in keys:
-        print(f"→ {key}: {len(symbols)} Symbole …", file=sys.stderr)
-        results.append(run_many(symbols, get_strategy(key), loader, cfg, fx_loader))
+    for key in _keys(args):
+        print(f"→ {key} …", file=sys.stderr)
+        results.append(run_many(list(uni.data), get_strategy(key), loader, cfg, universe=uni))
 
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -76,15 +96,9 @@ def cmd_backtest(args: argparse.Namespace) -> int:
     (out / "bericht.md").write_text(report, encoding="utf-8")
     summary = {
         r.strategy["key"]: {
-            "strategie": r.strategy,
-            "stichtag": r.split_date,
-            "einstellungen": r.config,
-            "symbole_ok": r.symbols_ok,
-            "symbole_fehler": r.symbols_failed,
-            "hinweise": r.notes,
-            "auswertung": r.summary,
-            "laender": r.by_market,
-            "portfolio": r.portfolio,
+            "strategie": r.strategy, "stichtag": r.split_date, "einstellungen": r.config,
+            "symbole_ok": r.symbols_ok, "symbole_fehler": r.symbols_failed, "hinweise": r.notes,
+            "auswertung": r.summary, "laender": r.by_market, "portfolio": r.portfolio,
         }
         for r in results
     }
@@ -92,7 +106,43 @@ def cmd_backtest(args: argparse.Namespace) -> int:
         json.dumps(summary, indent=2, ensure_ascii=False, default=str), encoding="utf-8")
     for r in results:
         r.trades.to_csv(out / f"trades_{r.strategy['key']}.csv", index=False)
+    print(report)
+    print(f"\nErgebnisse gespeichert in: {out}/", file=sys.stderr)
+    return 0
 
+
+def cmd_walkforward(args: argparse.Namespace) -> int:
+    setup = _setup(args)
+    if setup is None:
+        print("Keine Symbole angegeben (--symbols oder --universe).", file=sys.stderr)
+        return 2
+    cfg, loader, uni = setup
+    wf = WFConfig(first_test_year=args.first_test_year, window_years=args.window_years,
+                  min_train_trades=args.min_train_trades)
+    results = []
+    for key in _keys(args):
+        t0 = time.time()
+        print(f"→ {key}: {len(REGISTRY[key].grid) or 1} Varianten …", file=sys.stderr)
+        results.append(walk_forward(uni, key, cfg, wf, loader))
+        print(f"  fertig in {time.time() - t0:.0f} s", file=sys.stderr)
+
+    out = Path(args.out)
+    out.mkdir(parents=True, exist_ok=True)
+    report = walkforward_markdown(results)
+    (out / "bericht_walkforward.md").write_text(report, encoding="utf-8")
+    summary = {
+        r.strategy["key"]: {
+            "strategie": r.strategy, "varianten": r.variants, "einstellungen": r.config,
+            "symbole_ok": r.symbols_ok, "symbole_fehler": r.symbols_failed, "hinweise": r.notes,
+            "fenster": r.windows, "auswertung": r.summary, "portfolio": r.portfolio,
+            "laender": r.by_market,
+        }
+        for r in results
+    }
+    (out / "zusammenfassung_walkforward.json").write_text(
+        json.dumps(summary, indent=2, ensure_ascii=False, default=str), encoding="utf-8")
+    for r in results:
+        r.trades.to_csv(out / f"trades_oos_{r.strategy['key']}.csv", index=False)
     print(report)
     print(f"\nErgebnisse gespeichert in: {out}/", file=sys.stderr)
     return 0
@@ -118,26 +168,37 @@ def cmd_universe_check(args: argparse.Namespace) -> int:
     return 0
 
 
+def _common(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--symbols", nargs="*", help="Börsenkürzel, z.B. AAPL SAP.DE BTC-USD")
+    parser.add_argument("--universe", action="append", help="Universumsdatei (mehrfach möglich)")
+    parser.add_argument("--strategy", default="all", choices=["all", *REGISTRY])
+    parser.add_argument("--start", default="2005-01-01", help="Beginn der Kursdaten")
+    parser.add_argument("--min-turnover", type=float, default=5.0,
+                        help="Mindest-Tagesumsatz in Mio. USD (0 = aus)")
+    parser.add_argument("--max-positions", type=int, default=10)
+    parser.add_argument("--max-per-market", type=int, default=4)
+    parser.add_argument("--risk", type=float, default=1.0, help="Risiko je Trade in %% des Kontos")
+    parser.add_argument("--out", default="results", help="Ausgabeordner")
+    parser.add_argument("--cache", default=".cache/prices", help="Ordner für Kursdaten-Cache")
+    parser.add_argument("--demo", action="store_true", help="Kunstdaten statt Yahoo (offline)")
+    parser.add_argument("-v", "--verbose", action="store_true")
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="quantswing", description="QuantSwing Signal-Bot")
     sub = p.add_subparsers(dest="cmd", required=True)
 
-    b = sub.add_parser("backtest", help="Strategien auf historischen Daten testen")
-    b.add_argument("--symbols", nargs="*", help="Börsenkürzel, z.B. AAPL SAP.DE BTC-USD")
-    b.add_argument("--universe", action="append", help="Universumsdatei (mehrfach möglich)")
-    b.add_argument("--strategy", default="all", choices=["all", *REGISTRY])
-    b.add_argument("--start", default="2005-01-01", help="Beginn der Kursdaten")
+    b = sub.add_parser("backtest", help="Strategien mit festem Stichtag testen")
+    _common(b)
     b.add_argument("--split", default="2018-01-01", help="Stichtag Training/Test")
-    b.add_argument("--min-turnover", type=float, default=5.0,
-                   help="Mindest-Tagesumsatz in Mio. USD (0 = aus)")
-    b.add_argument("--max-positions", type=int, default=10)
-    b.add_argument("--max-per-market", type=int, default=4)
-    b.add_argument("--risk", type=float, default=1.0, help="Risiko je Trade in %% des Kontos")
-    b.add_argument("--out", default="results", help="Ausgabeordner")
-    b.add_argument("--cache", default=".cache/prices", help="Ordner für Kursdaten-Cache")
-    b.add_argument("--demo", action="store_true", help="Kunstdaten statt Yahoo (offline)")
-    b.add_argument("-v", "--verbose", action="store_true")
     b.set_defaults(func=cmd_backtest)
+
+    w = sub.add_parser("walkforward", help="Walk-Forward-Test mit rollierenden Testfenstern")
+    _common(w)
+    w.add_argument("--first-test-year", type=int, default=2010)
+    w.add_argument("--window-years", type=int, default=2)
+    w.add_argument("--min-train-trades", type=int, default=30)
+    w.set_defaults(func=cmd_walkforward)
 
     u = sub.add_parser("universe-check", help="Kürzel einer Universumsdatei prüfen")
     u.add_argument("file")

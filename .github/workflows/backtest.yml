@@ -6,11 +6,16 @@ name: Backtest
 on:
   workflow_dispatch:
     inputs:
+      modus:
+        description: "Walk-Forward (ehrlichster Test) oder einfacher Stichtag-Test?"
+        type: choice
+        default: walkforward
+        options: [walkforward, backtest]
       strategie:
         description: "Welche Strategie?"
         type: choice
         default: all
-        options: [all, trend_pullback, breakout_volume]
+        options: [all, trend_pullback, breakout_volume, rs_momentum]
       universum:
         description: "Datei mit Börsenkürzeln"
         default: config/universes/welt.txt
@@ -18,7 +23,7 @@ on:
         description: "Kursdaten ab (JJJJ-MM-TT)"
         default: "2005-01-01"
       stichtag:
-        description: "Stichtag Training/Test (JJJJ-MM-TT)"
+        description: "Nur Modus backtest: Stichtag Training/Test (JJJJ-MM-TT)"
         default: "2018-01-01"
 
 jobs:
@@ -42,17 +47,22 @@ jobs:
           key: kurse-${{ inputs.start }}-${{ env.TAG }}
       - name: Backtest ausführen
         env:
+          MODUS: ${{ inputs.modus }}
           STRATEGIE: ${{ inputs.strategie }}
           UNIVERSUM: ${{ inputs.universum }}
           START: ${{ inputs.start }}
           STICHTAG: ${{ inputs.stichtag }}
-        run: >
-          python -m quantswing backtest
-          --strategy "$STRATEGIE" --universe "$UNIVERSUM"
-          --start "$START" --split "$STICHTAG" --out results -v
+        run: |
+          if [ "$MODUS" = "walkforward" ]; then
+            python -m quantswing walkforward --strategy "$STRATEGIE" --universe "$UNIVERSUM" \
+              --start "$START" --out results -v
+          else
+            python -m quantswing backtest --strategy "$STRATEGIE" --universe "$UNIVERSUM" \
+              --start "$START" --split "$STICHTAG" --out results -v
+          fi
       - name: Bericht anzeigen
         if: always()
-        run: cat results/bericht.md >> "$GITHUB_STEP_SUMMARY" || echo "Kein Bericht erzeugt" >> "$GITHUB_STEP_SUMMARY"
+        run: cat results/bericht*.md >> "$GITHUB_STEP_SUMMARY" || echo "Kein Bericht erzeugt" >> "$GITHUB_STEP_SUMMARY"
       - name: Ergebnisse zum Download bereitstellen
         if: always()
         uses: actions/upload-artifact@v7

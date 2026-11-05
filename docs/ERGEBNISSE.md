@@ -3,7 +3,52 @@
 Jeder wichtige Backtest-Lauf mit Datum, Stand und Fazit – neuester oben.
 Die vollständigen Berichte liegen in [`docs/ergebnisse/`](ergebnisse/).
 
-Lesehilfe: [BACKTEST_ERKLAERT.md](BACKTEST_ERKLAERT.md). Entscheidend ist immer der **Test**-Zeitraum (ab 2018).
+Lesehilfe: [BACKTEST_ERKLAERT.md](BACKTEST_ERKLAERT.md). Entscheidend sind immer Ergebnisse auf
+ungesehenen Daten: beim Walk-Forward alle Testfenster zusammen, beim einfachen Test die Spalte **Test**.
+
+---
+
+**Versuchszähler** (je mehr Ideen getestet werden, desto eher ist ein Treffer Zufall):
+3 Strategie-Ideen · 12 Varianten · Stand 2026-11-05
+
+---
+
+## 2026-11-05 · Phase 2b · Walk-Forward mit 3 Strategien × 4 Varianten
+
+Bericht: [2026-11-05_phase2b_walkforward.md](ergebnisse/2026-11-05_phase2b_walkforward.md)
+Neu: Walk-Forward (2-Jahres-Testfenster ab 2010), Trailing-Stop, Markt-Regime-Filter,
+Strategie „Relative Stärke“, Vergleichsmaßstab „Universum gleichgewichtet“, MAR-Quote.
+
+| Strategie | Klasse | Trades OOS | Ø R | sicher ≥ | Depot p.a. | Drawdown | MAR | Urteil |
+|---|---|---:|---:|---:|---:|---:|---:|---|
+| Trend-Pullback | Aktien | 16 611 | +0,06 | +0,03 | 1,7 % | −34,9 % | 0,05 | ❌ |
+| Ausbruch (BOS + RVOL) | Aktien | 11 709 | +0,06 | +0,04 | 4,9 % | −26,2 % | 0,19 | ❌ |
+| **Relative Stärke** | **Aktien** | 7 148 | **+0,11** | **+0,08** | **8,8 %** | **−24,4 %** | **0,36** | ❌ knapp (PF 1,21 < 1,30) |
+| Ausbruch (BOS + RVOL) | Krypto | 54 | +0,73 | +0,21 | 7,3 % | −4,4 % | 1,65 | ❌ Trefferquote zu niedrig |
+| Relative Stärke | Krypto | 31 | +0,55 | −0,05 | 6,4 % | −2,7 % | 2,37 | ❌ zu wenige Trades |
+| Trend-Pullback | Krypto | 80 | +0,11 | −0,26 | 0,3 % | −16,2 % | 0,02 | ❌ |
+
+Vergleich im selben Zeitraum (2010–2026): SPY 13,7 % p.a. (MAR 0,41) · ACWI 9,9 % (0,29) ·
+Universum gleichgewichtet 17,2 % (0,52).
+
+**Fazit**
+- **Relative Stärke ist die erste Idee mit einem statistisch gesicherten Vorteil**
+  über 16 Jahre echter Out-of-Sample-Zeit (untere Grenze +0,08 R > 0). Risikobereinigt
+  liegt sie zwischen Welt-Index (ACWI) und S&P 500, mit kleinerem Drawdown als beide.
+  Die Hürde verfehlt sie knapp am Profit-Faktor. **Die Hürde wird bewusst nicht im
+  Nachhinein gesenkt** – sonst wäre sie wertlos.
+- Die Variantenwahl war bei Relative Stärke stabil (fast immer „Top 20 %, Trailing
+  4 ATR“), bei Trend-Pullback sprang sie hin und her – ein Hinweis, dass dort kein
+  echtes Muster dahintersteckt.
+- Trailing-Stops (Gewinne laufen lassen) wurden bei Aktien meist gegenüber dem festen
+  2-R-Ziel bevorzugt. Der Regime-Filter half dem Ausbruch durchgehend, dem Pullback kaum.
+- **Ernüchternder Maßstab:** Alle 500 Werte einfach gleichgewichtet zu halten brachte
+  17,2 % p.a. Ein großer Teil davon ist Survivorship Bias (die Liste enthält nur
+  heutige Gewinner) und Landeswährungs-Effekte. Keine Strategie schlägt diesen Maßstab:
+  Die Auswahl der Strategien war schlechter als „einfach alles halten“.
+- Krypto: Ausbruch mit Trailing-Stop sieht stark aus (+0,73 R, Profit-Faktor 2,8),
+  hat aber nur 54 Trades in 4 Jahren und eine Trefferquote von 43 %. Die strenge
+  Krypto-Hürde (sichere Trefferquote ≥ 50 %) blockiert das – wie gewünscht.
 
 ---
 

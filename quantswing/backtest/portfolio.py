@@ -7,7 +7,8 @@ die Trades chronologisch durch und nimmt nur die, für die Platz ist.
 
 Regeln (alle ohne Blick in die Zukunft):
 - Höchstens `max_positions` Positionen gleichzeitig, davon höchstens
-  `max_per_market` aus demselben Land (gegen Klumpenrisiko).
+  `max_per_market` aus demselben Land (gegen Klumpenrisiko), und jedes
+  Symbol höchstens einmal.
 - Gibt es an einem Tag mehr Signale als freie Plätze, gewinnt das Signal mit
   der höchsten `priority` (Standard: 6-Monats-Kursentwicklung am Signaltag –
   die relativ stärksten Werte zuerst).
@@ -54,6 +55,11 @@ def _cagr(equity: pd.Series, start: pd.Timestamp, start_value: float) -> float:
     return float((final ** (1 / years) - 1) * 100.0) if final > 0 else -100.0
 
 
+def _mar(cagr_pct: float, dd_pct: float) -> float | None:
+    """MAR-Quote: Rendite p.a. ÷ größter Rückgang. Höher = bessere Rendite pro ertragenem Schmerz."""
+    return round(cagr_pct / abs(dd_pct), 2) if dd_pct < 0 else None
+
+
 def simulate_portfolio(trades: pd.DataFrame, rules: PortfolioRules | None = None) -> PortfolioResult:
     rules = rules or PortfolioRules()
     res = PortfolioResult(rules=rules)
@@ -91,14 +97,17 @@ def simulate_portfolio(trades: pd.DataFrame, rules: PortfolioRules | None = None
         realize_until(day)
         for _, tr in group.iterrows():
             per_market = sum(1 for p in open_pos if p["market"] == tr["market"])
-            if len(open_pos) >= rules.max_positions or per_market >= rules.max_per_market:
+            already = any(p["symbol"] == tr["symbol"] for p in open_pos)
+            if (already or len(open_pos) >= rules.max_positions
+                    or per_market >= rules.max_per_market):
                 skipped += 1
                 continue
             stop_pct = abs(tr["entry_price"] - tr["stop_price"]) / tr["entry_price"]
             risk_frac = min(rules.risk_per_trade, max_notional * stop_pct)
             risk_amount = equity * risk_frac
             pnl = float(tr["r_multiple"]) * risk_amount
-            p = {"exit_date": tr["exit_date"], "market": tr["market"], "pnl": pnl}
+            p = {"exit_date": tr["exit_date"], "market": tr["market"], "pnl": pnl,
+                 "symbol": tr["symbol"]}
             open_pos.append(p)
             position_days += max((tr["exit_date"] - day).days, 1)
             row = tr.to_dict()
@@ -131,6 +140,7 @@ def simulate_portfolio(trades: pd.DataFrame, rules: PortfolioRules | None = None
         "endkapital": round(float(eq.iloc[-1]), 2) if not eq.empty else rules.start_equity,
         "rendite_pa_pct": round(_cagr(eq, start, rules.start_equity), 2),
         "max_drawdown_pct": round(max_drawdown(eq / rules.start_equity), 2),
+        "mar": _mar(_cagr(eq, start, rules.start_equity), max_drawdown(eq / rules.start_equity)),
         "trades_genommen": len(taken_rows),
         "trades_uebersprungen": skipped,
         "avg_positionen": round(position_days / span_days, 2),
@@ -149,9 +159,12 @@ def buy_and_hold(close: pd.Series, start: str, end: str) -> dict:
     years = max((c.index[-1] - c.index[0]).days / 365.25, 1 / 365.25)
     yearly = eq.groupby(eq.index.year).last()
     prev = yearly.shift(1).fillna(1.0)
+    cagr = float((eq.iloc[-1] ** (1 / years) - 1) * 100)
+    dd = max_drawdown(eq)
     return {
-        "rendite_pa_pct": round(float((eq.iloc[-1] ** (1 / years) - 1) * 100), 2),
-        "max_drawdown_pct": round(max_drawdown(eq), 2),
+        "rendite_pa_pct": round(cagr, 2),
+        "max_drawdown_pct": round(dd, 2),
+        "mar": _mar(cagr, dd),
         "jahresrenditen_pct": {int(y): round(float((v / p - 1) * 100), 2)
                                for y, v, p in zip(yearly.index, yearly.values, prev.values)},
     }

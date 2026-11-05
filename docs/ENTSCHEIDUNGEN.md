@@ -55,3 +55,37 @@ Bei hunderten Werten laufen Trades gleichzeitig. Ein Kontoverlauf, der alle
 Trades hintereinander verbucht, ist dann sinnlos (zeigte −98 %). Die
 Drawdown-Hürde gilt deshalb jetzt für die Portfolio-Simulation im Testzeitraum,
 zusätzlich muss das Portfolio dort Gewinn machen.
+
+### E11 – Walk-Forward als Hauptbewertung (2026-11-05)
+Statt eines festen Stichtags: 2-Jahres-Testfenster ab 2010. Vor jedem Fenster
+wird aus den Varianten einer Strategie diejenige mit der höchsten *unteren
+Sicherheitsgrenze* des Erwartungswerts gewählt – nur mit Trades, die vor dem
+Fenster abgeschlossen waren. War keine Variante profitabel, wird im Fenster
+nicht gehandelt. Die Hürden (E4/E6/E10) gelten für alle Testfenster zusammen.
+Der einfache Stichtag-Test bleibt als schneller Überblick erhalten.
+
+### E12 – Varianten bewusst klein halten und mitzählen (2026-11-05)
+Jede Strategie bekommt höchstens wenige, vorab festgelegte Varianten (aktuell 4).
+Im Ergebnis-Logbuch steht ein Versuchszähler. Grund: Der Walk-Forward schützt
+vor Überanpassung der Parameter, aber nicht davor, dass Menschen nach dem
+Anschauen von Ergebnissen neue Ideen entwerfen. Je mehr Versuche, desto
+skeptischer muss man bei einem Treffer sein.
+
+### E13 – Hürden werden nicht nachträglich gesenkt (2026-11-05)
+Relative Stärke verfehlt die Aktien-Hürde nur am Profit-Faktor (1,21 statt 1,30).
+Die Hürde bleibt trotzdem. Würde man sie nach dem Anschauen der Ergebnisse
+anpassen, bis etwas besteht, wäre sie wertlos. Änderungen an Hürden nur mit
+Begründung, die unabhängig vom aktuellen Ergebnis ist.
+
+### E14 – Marktkontext immer mit einem Tag Verzögerung (2026-11-05)
+Regime-Filter (SPY bzw. Bitcoin über SMA200) und relative Stärke werden für
+Tag t nur aus Daten bis Tag t−1 gebildet. Grund: Börsen schließen in
+unterschiedlichen Zeitzonen – beim Schluss in Tokio ist der US-Schluss desselben
+Tages noch unbekannt. Kostet etwas Aktualität, verhindert aber stillen
+Blick in die Zukunft.
+
+### E15 – Zusätzlicher Maßstab „Universum gleichgewichtet“ (2026-11-05)
+Neben SPY/ACWI wird mit dem gleichgewichteten Halten aller Universumswerte
+verglichen. Er zeigt, wie stark Survivorship Bias (E7) die Zahlen schönt
+(2010–2026: 17,2 % p.a. gegenüber ACWI 9,9 %). Renditen in Landeswährung,
+täglich neu gewichtet – eine grobe, aber ehrliche Messlatte.

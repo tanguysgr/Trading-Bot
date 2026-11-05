@@ -62,3 +62,22 @@ def test_buy_and_hold():
     bh = buy_and_hold(close, "2020-01-01", "2021-12-31")
     assert bh["rendite_pa_pct"] > 0
     assert bh["max_drawdown_pct"] == pytest.approx(0.0)
+
+
+def test_same_symbol_only_once():
+    t = pd.DataFrame([
+        trade("A", "2020-01-02", "2020-01-20"),
+        trade("A", "2020-01-06", "2020-01-10"),
+        trade("B", "2020-01-06", "2020-01-10"),
+    ])
+    res = simulate_portfolio(t, PortfolioRules(max_positions=5, max_per_market=5))
+    assert list(res.taken["symbol"]) == ["A", "B"]
+
+
+def test_mar_ratio():
+    t = pd.DataFrame([
+        trade("A", "2020-01-02", "2020-03-01", r=-2.0, stop_px=80.0),
+        trade("B", "2020-03-02", "2021-01-01", r=5.0, stop_px=80.0),
+    ])
+    st = simulate_portfolio(t).stats
+    assert st["mar"] == pytest.approx(st["rendite_pa_pct"] / abs(st["max_drawdown_pct"]), abs=0.01)

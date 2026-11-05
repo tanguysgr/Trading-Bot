@@ -41,6 +41,10 @@ def bootstrap_expectancy_lower(r: np.ndarray, n_boot: int = 5000, q: float = 0.0
     """
     if len(r) < 2:
         return float("nan")
+    if len(r) >= 300:
+        # Bei vielen Trades ist der Mittelwert praktisch normalverteilt –
+        # gleiche Aussage, aber ohne riesigen Speicherbedarf.
+        return float(r.mean() - 1.645 * r.std(ddof=1) / np.sqrt(len(r)))
     rng = np.random.default_rng(seed)
     samples = rng.choice(r, size=(n_boot, len(r)), replace=True).mean(axis=1)
     return float(np.quantile(samples, q))
