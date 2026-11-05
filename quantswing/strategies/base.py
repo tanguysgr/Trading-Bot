@@ -32,6 +32,9 @@ class Strategy:
     # Varianten für den Walk-Forward-Test: Liste von
     # {"label": "Kurzname", "overrides": {...}} – siehe get_strategy()
     grid: ClassVar[list[dict]] = []
+    # Kontrollläufe: gleiche Form wie `grid`, werden nur zum Vergleich gerechnet und
+    # NIE als Gewinner ausgewählt (prüfen, welcher Baustein wirklich etwas beiträgt)
+    controls: ClassVar[list[dict]] = []
 
     # Ausstiegsregeln (gelten für alle Strategien, pro Strategie anpassbar)
     target_r: float | None = 2.0      # Kursziel als Vielfaches des Risikos (CRV); None = kein Ziel

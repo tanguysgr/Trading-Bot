@@ -210,6 +210,31 @@ def _wf_stats(lines: list[str], block: dict) -> None:
     lines.append("")
 
 
+def _comparison(lines: list[str], rows: list[dict], config: dict) -> None:
+    if not rows:
+        return
+    since = config.get("walk_forward", {}).get("first_test_year")
+    lines += [
+        f"**Varianten und Kontrollläufe im Vergleich** (feste Regeln, alle Trades ab {since}; "
+        "nur zum Verstehen, welcher Baustein etwas beiträgt – Kontrollläufe werden nie ausgewählt)",
+        "",
+        "| Lauf | Trades | Trefferquote | sicher ≥ | Zufallsniveau | Vorsprung | Ø R | sicher ≥ | PF |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|",
+    ]
+    for r in rows:
+        name = r["lauf"] if r["art"] == "Variante" else f"_{r['lauf']}_"
+        vp = r["vorsprung_pp"]
+        lines.append(
+            f"| {name} | {r['trades']} | {r['trefferquote']:.1f} % | {r['trefferquote_sicher']:.1f} % | "
+            f"{_fmt(r['zufall'], ' %', 1)} | {'–' if vp is None else f'{vp:+.1f} Pp'} | "
+            f"{r['erwartung_r']:+.3f} R | {_fmt(r['erwartung_sicher_r'], ' R', 3)} | "
+            f"{_fmt(r['profit_faktor'])} |")
+    lines += ["", "Zufallsniveau = Trefferquote, die bei diesem Kursziel/Stop-Verhältnis ohne jeden "
+              "Vorteil zu erwarten wäre (vor Kosten). Erst der Vorsprung darüber ist Können. "
+              "K1–K3: Ist ein Baustein wertvoll, sollte der Kontrolllauf ohne ihn bzw. mit Zufallswerten "
+              "deutlich schlechter sein als V1.", ""]
+
+
 def walkforward_markdown(results: list) -> str:
     lines: list[str] = []
     if not results:
@@ -251,6 +276,7 @@ def walkforward_markdown(results: list) -> str:
             pf = res.portfolio.get(cls, {}).get("oos")
             if pf:
                 _portfolio_table(lines, {"Out-of-Sample": pf}, res.config.get("portfolio", {}))
+            _comparison(lines, getattr(res, "comparison", {}).get(cls, []), res.config)
         if res.by_market:
             _markets(lines, res)
     return "\n".join(lines)

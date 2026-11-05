@@ -36,7 +36,7 @@ import numpy as np
 import pandas as pd
 
 from ..markets import asset_class
-from ..strategies import REGISTRY, variants
+from ..strategies import REGISTRY, get_strategy, variants
 from .metrics import GATES, compute_metrics
 from .portfolio import simulate_portfolio
 from .runner import (UNIVERSE_BENCH, Loader, RunConfig, Universe, benchmarks_for,
@@ -65,6 +65,7 @@ class WFResult:
     summary: dict = field(default_factory=dict)       # Klasse -> Kennzahlen + Urteil
     portfolio: dict = field(default_factory=dict)     # Klasse -> Portfolio-Kennzahlen
     by_market: list[dict] = field(default_factory=list)
+    comparison: dict = field(default_factory=dict)    # Klasse -> Varianten + Kontrollläufe (fest)
 
 
 def make_windows(first_year: int, window_years: int,
@@ -172,4 +173,44 @@ def walk_forward(uni: Universe, key: str, cfg: RunConfig, wf: WFConfig,
 
     res.trades = pd.concat(oos_frames, ignore_index=True) if oos_frames else pd.DataFrame()
     res.by_market = market_breakdown(res.trades)
+
+    controls = REGISTRY[key].controls
+    if controls:
+        runs = [(label, "Variante", dict(vs)[label], by_variant[label]) for label, _ in vs]
+        for c in controls:
+            strat = get_strategy(key, **c["overrides"])
+            log.info("%s – Kontrolle %s", key, c["label"])
+            tf = collect_trades(uni, strat)
+            if not tf.empty:
+                tf["asset_class"] = tf["symbol"].map(asset_class)
+            runs.append((c["label"], "Kontrolle", strat, tf))
+        res.comparison = compare_runs(runs, pd.Timestamp(year=wf.first_test_year, month=1, day=1))
     return res
+
+
+def compare_runs(runs: list, since: pd.Timestamp) -> dict:
+    """
+    Feste Regeln nebeneinander (alle Trades ab `since`): Varianten und Kontrollläufe.
+    Dient nur dem Verständnis, welcher Baustein etwas beiträgt – nicht der Auswahl.
+    """
+    out: dict = {}
+    for label, kind, strat, tf in runs:
+        if tf.empty:
+            continue
+        tf = tf[pd.to_datetime(tf["entry_date"]) >= since]
+        for cls, grp in tf.groupby("asset_class"):
+            m = compute_metrics(grp)
+            if m.trades == 0:
+                continue
+            chance = 100.0 / (1.0 + strat.target_r) if strat.target_r else None
+            out.setdefault(cls, []).append({
+                "lauf": label, "art": kind, "trades": m.trades,
+                "trefferquote": round(m.winrate, 1), "trefferquote_sicher": round(m.winrate_lower, 1),
+                "zufall": round(chance, 1) if chance else None,
+                "vorsprung_pp": round(m.winrate - chance, 1) if chance else None,
+                "erwartung_r": round(m.expectancy_r, 3),
+                "erwartung_sicher_r": None if not np.isfinite(m.expectancy_lower_r)
+                else round(m.expectancy_lower_r, 3),
+                "profit_faktor": round(m.profit_factor, 2) if np.isfinite(m.profit_factor) else None,
+            })
+    return out

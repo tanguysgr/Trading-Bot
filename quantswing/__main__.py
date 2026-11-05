@@ -77,7 +77,8 @@ def _setup(args: argparse.Namespace):
 
 
 def _keys(args) -> list[str]:
-    return list(REGISTRY) if args.strategy == "all" else [args.strategy]
+    keys = args.strategy if isinstance(args.strategy, list) else [args.strategy]
+    return list(REGISTRY) if "all" in keys else keys
 
 
 def cmd_backtest(args: argparse.Namespace) -> int:
@@ -136,7 +137,7 @@ def cmd_walkforward(args: argparse.Namespace) -> int:
             "strategie": r.strategy, "varianten": r.variants, "einstellungen": r.config,
             "symbole_ok": r.symbols_ok, "symbole_fehler": r.symbols_failed, "hinweise": r.notes,
             "fenster": r.windows, "auswertung": r.summary, "portfolio": r.portfolio,
-            "laender": r.by_market,
+            "laender": r.by_market, "vergleich": r.comparison,
         }
         for r in results
     }
@@ -184,7 +185,8 @@ def cmd_chart(args: argparse.Namespace) -> int:
 def _common(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--symbols", nargs="*", help="Börsenkürzel, z.B. AAPL SAP.DE BTC-USD")
     parser.add_argument("--universe", action="append", help="Universumsdatei (mehrfach möglich)")
-    parser.add_argument("--strategy", default="all", choices=["all", *REGISTRY])
+    parser.add_argument("--strategy", nargs="+", default=["all"], choices=["all", *REGISTRY],
+                        help="eine oder mehrere Strategien (Standard: alle)")
     parser.add_argument("--start", default="2005-01-01", help="Beginn der Kursdaten")
     parser.add_argument("--min-turnover", type=float, default=5.0,
                         help="Mindest-Tagesumsatz in Mio. USD (0 = aus)")

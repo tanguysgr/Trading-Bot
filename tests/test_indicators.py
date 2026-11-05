@@ -14,7 +14,7 @@ from quantswing.strategies import REGISTRY, get_strategy
 
 @pytest.fixture
 def df():
-    return synthetic_ohlcv(n=800, seed=3)
+    return synthetic_ohlcv(n=800, seed=10)
 
 
 def test_rsi_range_and_extremes(df):
@@ -54,22 +54,26 @@ def test_swings_are_only_known_after_confirmation():
 
 
 @pytest.mark.parametrize("key", list(REGISTRY))
-def test_no_lookahead_in_strategies(key, df):
+def test_no_lookahead_in_strategies(key):
     """
     Der entscheidende Test: Werden die Daten NACH Tag t verändert, dürfen sich
-    Signale und Stops bis Tag t nicht ändern.
+    Signale und Stops bis Tag t nicht ändern. Geprüft auf mehreren Kursverläufen,
+    damit jede Strategie (Long wie Short) tatsächlich Signale erzeugt.
     """
     strat = get_strategy(key)
     cut = 600
-    rng = np.random.default_rng(0)
-    df = df.copy()
-    # Marktkontext wie im echten Lauf (Werte beliebig, aber fest)
-    df["RS_RANK"] = rng.uniform(0, 1, len(df))
-    df["REGIME_OK"] = (rng.uniform(0, 1, len(df)) > 0.3).astype(float)
-    full = strat.run(df)
-    assert full["signal"].sum() > 0, "Test braucht Signale, sonst prüft er nichts"
-    mutated = df.copy()
-    mutated.iloc[cut + 1:] *= rng.uniform(0.5, 1.5, size=(len(df) - cut - 1, 1))
-    changed = strat.run(mutated)
-    pd.testing.assert_series_equal(full["signal"].iloc[: cut + 1], changed["signal"].iloc[: cut + 1])
-    pd.testing.assert_series_equal(full["stop"].iloc[: cut + 1], changed["stop"].iloc[: cut + 1])
+    signals_seen = 0
+    for seed in (3, 10, 8):
+        rng = np.random.default_rng(0)
+        df = synthetic_ohlcv(n=800, seed=seed)
+        # Marktkontext wie im echten Lauf (Werte beliebig, aber fest)
+        df["RS_RANK"] = rng.uniform(0, 1, len(df))
+        df["REGIME_OK"] = (rng.uniform(0, 1, len(df)) > 0.3).astype(float)
+        full = strat.run(df)
+        signals_seen += int(full["signal"].iloc[: cut + 1].sum())
+        mutated = df.copy()
+        mutated.iloc[cut + 1:] *= rng.uniform(0.5, 1.5, size=(len(df) - cut - 1, 1))
+        changed = strat.run(mutated)
+        pd.testing.assert_series_equal(full["signal"].iloc[: cut + 1], changed["signal"].iloc[: cut + 1])
+        pd.testing.assert_series_equal(full["stop"].iloc[: cut + 1], changed["stop"].iloc[: cut + 1])
+    assert signals_seen > 0, "Test braucht Signale, sonst prüft er nichts"

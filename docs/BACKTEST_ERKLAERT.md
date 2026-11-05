@@ -53,6 +53,23 @@ Trefferquote sinkt, der durchschnittliche Gewinn steigt.
   (1,0 = bester Wert). Starke Aktien bleiben im Schnitt eine Weile stark
   („Momentum“, einer der am besten belegten Effekte am Aktienmarkt).
 
+## Zufallsniveau – warum eine hohe Trefferquote allein nichts beweist
+Wo Stop und Ziel liegen, bestimmt, welche Trefferquote man **ohne jedes Können**
+erreicht: Zufallsniveau = 1 ÷ (1 + CRV). Bei Ziel = Stop (CRV 1) sind das 50 %,
+bei 1,25 R schon 44,4 %, bei 2 R nur 33 %. Ein weites Ziel senkt die Quote, ein
+nahes hebt sie – ohne dass sich am Vorteil etwas ändert. Echte Qualität ist nur
+der **Vorsprung** über dem Zufallsniveau. Deshalb steht er im Bericht neben jeder
+Trefferquote.
+
+## Kontrollläufe – trägt ein Baustein wirklich etwas bei?
+Ein Kontrolllauf ist die Strategie mit einem absichtlich veränderten Baustein:
+- **ohne Fibonacci:** Ist das Ergebnis genauso gut, bringt Fibonacci nichts.
+- **mit Zufalls-„Fibonacci“-Zonen:** gleich breite Zonen an zufälligen Stellen.
+  Sind die genauso gut, ist 0,5–0,618 nichts Besonderes.
+- **Ausbruch statt BOS/CHoCH:** Ist ein simpler 20-Tage-Ausbruch genauso gut,
+  steckt im BOS/CHoCH-Konzept keine zusätzliche Information.
+Kontrollläufe werden nie als Gewinner ausgewählt – sie dienen nur dem Verständnis.
+
 ## Trade-Statistik vs. Portfolio
 - Die **Trade-Statistik** wertet jedes Signal aus, als könntest du unbegrenzt
   viele Positionen halten. Sie misst, ob die Idee an sich einen Vorteil hat.

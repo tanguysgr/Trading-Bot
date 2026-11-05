@@ -125,7 +125,7 @@ def test_get_strategy_merges_params_and_rejects_typos():
 
 @pytest.mark.parametrize("key", list(REGISTRY))
 def test_all_variants_build_and_have_no_lookahead(key):
-    df = synthetic_ohlcv(n=800, seed=5)
+    df = synthetic_ohlcv(n=800, seed=10)
     rng = np.random.default_rng(1)
     df["RS_RANK"] = rng.uniform(0, 1, len(df))
     df["REGIME_OK"] = 1.0
