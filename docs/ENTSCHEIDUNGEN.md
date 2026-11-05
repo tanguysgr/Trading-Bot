@@ -89,3 +89,9 @@ Neben SPY/ACWI wird mit dem gleichgewichteten Halten aller Universumswerte
 verglichen. Er zeigt, wie stark Survivorship Bias (E7) die Zahlen schönt
 (2010–2026: 17,2 % p.a. gegenüber ACWI 9,9 %). Renditen in Landeswährung,
 täglich neu gewichtet – eine grobe, aber ehrliche Messlatte.
+
+### E16 – Krypto: „hohe Erfolgswahrscheinlichkeit“ = Trefferquote nachweislich > 50 % (2026-11-05)
+Vom Nutzer bestätigt: Bei Krypto sollen die meisten Trades gewinnen. Umgesetzt
+als strenge Prüfung: Nicht nur die gemessene Trefferquote, sondern ihre untere
+Sicherheitsgrenze (Wilson, 95 %) muss über 50 % liegen – zusätzlich zu einem
+positiven Erwartungswert. Entspricht der bestehenden Hürde `GATES["crypto"]`.
