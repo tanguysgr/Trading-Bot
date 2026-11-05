@@ -95,3 +95,23 @@ Vom Nutzer bestätigt: Bei Krypto sollen die meisten Trades gewinnen. Umgesetzt
 als strenge Prüfung: Nicht nur die gemessene Trefferquote, sondern ihre untere
 Sicherheitsgrenze (Wilson, 95 %) muss über 50 % liegen – zusätzlich zu einem
 positiven Erwartungswert. Entspricht der bestehenden Hürde `GATES["crypto"]`.
+
+### E17 – Definitionen der Confluence-Bausteine vorab festgelegt (2026-11-06)
+Grundlage: Recherche in `docs/recherche/confluence_regeln.md`. Festgelegt
+VOR jedem Test, damit die Ergebnisse die Definitionen nicht beeinflussen:
+- Swing-Pivot: Hoch höher als 5 Kerzen davor und mindestens so hoch wie 5
+  Kerzen danach (intern: je 2); bekannt erst 5 (bzw. 2) Kerzen später.
+- BOS/CHoCH: Zustandsautomat nach LuxAlgo-Logik (nachgebaut, nicht kopiert –
+  Lizenz CC BY-NC-SA), Bruch nur per Schlusskurs, jedes Level einmal.
+- Fibonacci: vom tiefsten Tief seit dem vorherigen Swing-Hoch bis zum
+  bestätigten Swing-Hoch; mindestens 3 ATR groß; ungültig bei Schluss unter dem Tief.
+- Zonen: ≥ 2 bestätigte Swings (Hochs und Tiefs gemeinsam, d.h. mit
+  Rollentausch) der letzten 250 Kerzen innerhalb von 0,5 ATR; Zone ± 0,25 ATR.
+Das Python-Paket `smartmoneyconcepts` wird nicht verwendet: Es nutzt Daten
+aus der Zukunft (zentriertes Fenster, nachträgliches Löschen von Swings).
+
+### E18 – TradingView nicht als Datenquelle (2026-11-06)
+Keine Programmierschnittstelle, automatisches Abrufen laut Nutzungsbedingungen
+verboten, höchstens 5.000 Kerzen pro Abruf. TradingView bleibt Werkzeug zum
+Anschauen und Gegenprüfen. Für längere 4H-Historien: Binance (Krypto),
+Alpaca (US-Aktien ab 2016); internationale Aktien bleiben auf Tageskerzen.

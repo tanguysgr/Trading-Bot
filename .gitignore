@@ -6,3 +6,4 @@ results/
 demo-results/
 .venv/
 .env
+charts/

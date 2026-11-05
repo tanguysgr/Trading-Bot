@@ -20,6 +20,8 @@ trading-bot/
 │   ├── universe.py           Universumsdateien lesen
 │   ├── context.py            Marktkontext: Regime-Filter, relative Stärke
 │   ├── indicators.py         SMA, EMA, ATR, RSI, ADX, Swings, Strukturbruch
+│   ├── structure.py          Confluence-Bausteine: Swings, BOS/CHoCH, Fibonacci, Zonen
+│   ├── charts.py             Prüf-Charts: was der Bot auf dem Chart erkennt
 │   ├── strategies/           eine Datei pro Strategie
 │   │   ├── base.py           Grundgerüst, das jede Strategie erfüllen muss
 │   │   ├── trend_pullback.py Strategie 1: Rücksetzer im Aufwärtstrend
@@ -37,6 +39,7 @@ trading-bot/
 ├── tests/                    automatische Prüfungen (laufen bei jedem Push)
 ├── docs/                     Doku: Fahrplan, Entscheidungen, Erklärungen
 │   ├── ERGEBNISSE.md         Logbuch aller Backtest-Läufe mit Fazit
+│   ├── recherche/            Recherche-Berichte (z.B. Regeln für Confluence-Trading)
 │   └── ergebnisse/           vollständige Berichte der Läufe
 ├── legacy/                   alte Gemini-Oberfläche, nur als Vorlage für Phase 3
 └── .github/workflows/        Automatisierung auf GitHub
@@ -66,6 +69,7 @@ python -m quantswing walkforward --universe config/universes/welt.txt   # ehrlic
 python -m quantswing backtest --universe config/universes/welt.txt      # fester Stichtag
 python -m quantswing backtest --symbols SAP.DE AAPL --strategy trend_pullback
 python -m quantswing universe-check config/universes/welt.txt   # Kürzel prüfen
+python -m quantswing chart SAP.DE BTC-USD --von 2025-08-01      # Prüf-Charts
 ```
 
 ## Arbeitsweise

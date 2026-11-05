@@ -32,14 +32,20 @@
 - [ ] Positionsgröße: Hebelgrenze 10 %/Position drückt das echte Risiko auf ~0,6 % je Trade
 - [ ] Wirtschaftsdaten/Ereignisse als Filter (Earnings-Termine, Zinsentscheide)
 
-### 2c – Täglicher Scanner
-- [ ] Nur Signale aus Strategien, die die Hürden bestanden haben
+### 2c – Deine Confluence-Strategie (SMA, Fibonacci, Zonen, BOS/CHoCH)
+Recherche: `docs/recherche/confluence_regeln.md`
+- [x] Teil 1: Bausteine als geprüfte Indikatoren (Swings, BOS/CHoCH, Fibonacci, Zonen) + Prüf-Charts
+- [ ] Teil 2: Strategie Long + Short, 4 Varianten, 3 Kontrollläufe, Walk-Forward
+- [ ] Teil 3: Daten-Import 1H/4H (Binance für Krypto, Alpaca für US-Aktien)
+
+### 2d – Täglicher Scanner
+- [ ] Signale mit Begründung; Kennzeichnung „bestanden“ bzw. „nur Beobachtung“
+- [ ] Signal-Journal: Ergebnis jedes Signals wird automatisch nachverfolgt
 - [ ] Positionsgröße in € (Wechselkurs)
 - [ ] Wirtschaftstermine (Earnings, Zentralbanken) als Warnhinweis am Signal
 
 ## Phase 3 – Oberfläche & Zugriff von überall
 - [ ] Neues Dashboard (GitHub Pages): Signale, Begründungen, Kennzahlen, Charts
-- [ ] Signal-Journal: Ergebnis jedes Signals wird automatisch nachverfolgt
 - [ ] Benachrichtigung aufs Handy (Telegram)
 - [ ] KI-Assistent im Dashboard für Fragen zu Signal und Markt (Schlüssel sicher, nicht im Browser)
 - [ ] Lern-Bereich: warum ein Setup funktioniert, was dagegen spricht
