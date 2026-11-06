@@ -15,7 +15,7 @@ on:
         description: "Welche Strategie?"
         type: choice
         default: all
-        options: [all, trend_pullback, breakout_volume, rs_momentum]
+        options: [all, trend_pullback, breakout_volume, rs_momentum, confluence_long, confluence_short]
       universum:
         description: "Datei mit Börsenkürzeln"
         default: config/universes/welt.txt

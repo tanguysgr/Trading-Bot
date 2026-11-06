@@ -2,6 +2,7 @@
 
 from .base import Strategy
 from .breakout import BreakoutVolume
+from .confluence import ConfluenceLong, ConfluenceShort
 from .momentum import RelativeStrength
 from .trend_pullback import TrendPullback
 
@@ -9,6 +10,8 @@ REGISTRY: dict[str, type[Strategy]] = {
     TrendPullback.key: TrendPullback,
     BreakoutVolume.key: BreakoutVolume,
     RelativeStrength.key: RelativeStrength,
+    ConfluenceLong.key: ConfluenceLong,
+    ConfluenceShort.key: ConfluenceShort,
 }
 
 
@@ -41,4 +44,4 @@ def variants(key: str) -> list[tuple[str, Strategy]]:
 
 
 __all__ = ["Strategy", "REGISTRY", "get_strategy", "variants",
-           "TrendPullback", "BreakoutVolume", "RelativeStrength"]
+           "TrendPullback", "BreakoutVolume", "RelativeStrength", "ConfluenceLong", "ConfluenceShort"]

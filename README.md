@@ -26,7 +26,8 @@ trading-bot/
 │   │   ├── base.py           Grundgerüst, das jede Strategie erfüllen muss
 │   │   ├── trend_pullback.py Strategie 1: Rücksetzer im Aufwärtstrend
 │   │   ├── breakout.py       Strategie 2: Ausbruch mit Volumen
-│   │   └── momentum.py       Strategie 3: Relative Stärke (Momentum)
+│   │   ├── momentum.py       Strategie 3: Relative Stärke (Momentum)
+│   │   └── confluence.py     Strategie 4: Confluence (Trend + Zone + Bestätigung), Long + Short
 │   ├── backtest/             Prüfstand
 │   │   ├── engine.py         spielt Trades Kerze für Kerze durch
 │   │   ├── metrics.py        Kennzahlen + Hürden „bestanden / nicht bestanden“

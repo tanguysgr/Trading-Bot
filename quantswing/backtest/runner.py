@@ -156,6 +156,7 @@ def prepare_universe(
             if len(df) < 260:
                 raise DataError(f"nur {len(df)} Kerzen (mind. 260 nötig)")
             uni.data[sym] = df.copy()
+            uni.data[sym].attrs["asset_class"] = asset_class(sym)
             uni.tradable[sym] = _tradable(df, sym, cfg, fx_loader, fx_cache, uni.notes)
         except Exception as e:  # Fehler sichtbar sammeln statt verschlucken
             log.warning("%s übersprungen: %s", sym, e)

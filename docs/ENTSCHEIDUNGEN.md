@@ -115,3 +115,20 @@ Keine Programmierschnittstelle, automatisches Abrufen laut Nutzungsbedingungen
 verboten, höchstens 5.000 Kerzen pro Abruf. TradingView bleibt Werkzeug zum
 Anschauen und Gegenprüfen. Für längere 4H-Historien: Binance (Krypto),
 Alpaca (US-Aktien ab 2016); internationale Aktien bleiben auf Tageskerzen.
+
+### E19 – Confluence-Strategie: Regeln, Varianten und Kontrollen (2026-11-06)
+Umsetzung der Nutzer-Strategie (`quantswing/strategies/confluence.py`) nach
+`docs/recherche/confluence_regeln.md`, vorab festgelegt:
+- Drei Pflicht-Kategorien statt Indikatoren zählen: Trend (SMA50/200 + Struktur),
+  Zone (SMA, Fibonacci 0,5–0,618 oder Swing-Zone), Bestätigungskerze.
+- Die 4H-SMAs des Nutzers werden als Tageslinien angenähert (Aktien 25/100,
+  Krypto 8/33 Tage) und zählen als zusätzliche SMA-Zonen.
+- Ziel 1,25 R, Stop hinter Zone + 0,5 ATR (1–3 ATR), Platz-zum-Ziel-Filter, 30 Tage.
+- 4 Varianten: Basis, Cluster (≥ 2 Zonentypen), interner Bruch, Trailing 3 ATR.
+- Short = exakte Spiegelung (Chart auf den Kopf gestellt), getrennt bewertet.
+  Leihgebühren/Funding für Shorts sind noch nicht eingerechnet.
+- Kontrollläufe (nie auswählbar): ohne Fibonacci, 5 zufällige „Fibonacci“-Zonen
+  gleicher Breite, 20-Tage-Ausbruch statt BOS/CHoCH. Sie zeigen, ob ein
+  Baustein wirklich etwas beiträgt.
+- Neben jeder Trefferquote steht das Zufallsniveau (1 ÷ (1 + CRV) = 44,4 % bei
+  1,25 R) und der Vorsprung darüber.
